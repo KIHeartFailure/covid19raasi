@@ -1,0 +1,77 @@
+```{r tab1, cache=cacheon}
+
+tab1_tmp <- CreateTableOne(
+  vars = tabvars,
+  strata = "sos_ddr_raasiarni",
+  data = pop
+)
+tab1 <- print(tab1_tmp,
+  varLabels = TRUE, missing = TRUE, printToggle = FALSE, nonnormal = tabvars,
+  test = TRUE,
+  catDigits = 1, contDigits = 1,
+  explain = FALSE
+)
+
+tab1m_tmp <- CreateTableOne(
+  vars = tabvars,
+  strata = "sos_ddr_mra",
+  data = pop
+)
+tab1m <- print(tab1m_tmp,
+  varLabels = TRUE, missing = TRUE, printToggle = FALSE, nonnormal = tabvars,
+  test = TRUE,
+  catDigits = 1, contDigits = 1,
+  explain = FALSE
+)
+
+tab1out <- as_tibble(cbind(rownames(tab1), tab1[, 5], tab1[, c(1:3)], tab1m[, c(1:3)]), 
+                     .name_repair = "universal")
+#tab1out <- as_tibble(cbind(rownames(tab1), tab1[, 6], tab1[, c(1:2, 5, 3)]))
+
+tab1out <- tab1out %>%
+  mutate(
+    tmp_varsforfoot = ...1,
+    ...1 = sub("  ", ". ", ...1),
+    ...1 = sanitizeTextFunc(...1)
+  )
+
+
+## add fotnote stating which variables are used in adj models
+
+tab1out$...1 <- ifelse(stri_extract_first_words(tab1out$tmp_varsforfoot) %in% modvars,
+  paste0(tab1out$...1, footnote_marker_symbol(1)), tab1out$...1
+)
+
+tab1out <- tab1out %>% select(-tmp_varsforfoot)
+
+## white space removed in kable function.
+## fix in order to use escape = TRUE
+
+colnames(tab1out) <- sanitizeTextFunc(c(
+  "Variables", "Missing (%)", rep(c("No", "Yes", "p-value"), 2)
+))
+
+write.xlsx(tab1out, paste0("./output/tabs/tab1_", Sys.Date(), ".xlsx"), rowNames = FALSE)
+
+
+myHeader <- c(" " = 1, " " = 1, "RAASi incl ARNI" = 3, "MRA" = 3)
+names(myHeader) <- c(" ", " ", "RAASi incl ARNI", "MRA")
+
+
+footnote(
+  mykable(tab1out,
+    fontsize = 6,
+    caption = "Baseline characteristics",
+    longtable = TRUE,
+    escape = FALSE
+  ) %>%
+    landscape() %>%
+    add_header_above(myHeader),
+  general = c(
+    "Categorical variables are presented with n (%) and tested with chi-square test and continuous variables with median [q1-q3] and tested with Mann-Whitney U test."
+  ),
+  symbol = c(
+   "Included in the logistic regression models."
+  )
+)
+```

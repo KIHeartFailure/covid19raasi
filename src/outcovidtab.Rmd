@@ -1,0 +1,263 @@
+```{r ortab, cache=cacheon}
+
+ormy <- function(event, modvarsmy, data, modname, weightsmy) {
+  out <- data.frame(matrix(NA, ncol = 6, nrow = 5))
+
+  out[1, 1] <- modname
+  out[1, 2] <- modvarsmy[1]
+  colnames(out) <- c("Outcome/Subgroup", "Variable", "Model", "No", "Yes", "p-value")
+
+  #tmpdata <- na.omit(data %>%
+  #  select(!!sym(event), !!!syms(modvarsmy)))
+
+  ns <- data %>%
+    group_by(!!sym(modvarsmy[1])) %>%
+    count(!!sym(event)) %>%
+    mutate(
+      p = n / sum(n),
+      np = paste0(n, " (", dF(p * 100, dig = 2), "%)")
+    ) %>%
+    ungroup() %>%
+    filter(!!sym(event) == "Yes")
+
+  out[1, 3] <- "n (%) event"
+  out[1, 4:5] <- ns %>% pull(np)
+
+
+  # Crude
+  mod <- glm(formula(paste(event, " == 'Yes' ~ ", modvarsmy[1])),
+    data = data,
+    family = binomial(link = "logit")
+  )
+  smod <- summary(mod)
+
+  out[2, 3] <- "Crude OR (95% CI)"
+  out[2, 4:6] <- cbind(
+    "ref",
+    paste0(
+      dF(exp(smod$coefficients[2, 1]), dig = 2),
+      " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
+      "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), "), "
+    ),
+    dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
+  )
+
+  # Adj no treatments
+  mod <- glm(formula(paste(event, " == 'Yes' ~ ", paste0(
+    modvarsmy[1], " + ",
+    paste(modvarsmy[!modvarsmy %in% modvarstreats],
+      collapse = " + "
+    )
+  ))),
+  data = data,
+  family = binomial(link = "logit")
+  )
+
+  smod <- summary(mod)
+
+  out[3, 3] <- "Adj no treatments OR (95% CI)"
+  out[3, 4:6] <- cbind(
+    "ref",
+    paste0(
+      dF(exp(smod$coefficients[2, 1]), dig = 2),
+      " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
+      "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), "), "
+    ),
+    dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
+  )
+
+  # Adj
+  mod <- glm(formula(paste(event, " == 'Yes' ~ ", paste(modvarsmy, collapse = " + "))),
+    data = data,
+    family = binomial(link = "logit")
+  )
+
+  smod <- summary(mod)
+
+  out[4, 3] <- "Adj OR (95% CI)"
+  out[4, 4:6] <- cbind(
+    "ref",
+    paste0(
+      dF(exp(smod$coefficients[2, 1]), dig = 2),
+      " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
+      "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), "), "
+    ),
+    dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
+  )
+
+  # Adj pS IPW
+  
+  mod <- glm(formula(paste(event, " == 'Yes' ~ ", paste(modvarsmy, collapse = " + "))),
+    data = data,
+    family = binomial(link = "logit"),
+    weights = data %>% pull(!!sym(weightsmy))
+  )
+  
+  smod <- summary(mod)
+
+  out[5, 3] <- "Adj ps IPW OR (95% CI)"
+  out[5, 4:6] <-   cbind(
+    "ref",
+    paste0(
+      dF(exp(smod$coefficients[2, 1]), dig = 2),
+      " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
+      "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), "), "
+    ),
+    dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
+  )
+
+  
+  return(out)
+}
+
+## RAASi
+out11 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns),
+  weightsmy = "ps_raasiarni",
+  data = pop,
+  modname = "Confirmed covid"
+)
+out12 <- ormy(
+  event = "sos_out_covidall",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns),
+  weightsmy = "ps_raasiarni",
+  data = pop,
+  modname = "Secondary analysis - Covid all"
+)
+out13 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
+  weightsmy = "ps_raasiarni",
+  data = pop %>% filter(sos_com_hf == "Yes"),
+  modname = "Sens analysis - Subgroup HF"
+)
+out14 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
+  weightsmy = "ps_raasiarni",
+  data = pop %>% filter(sos_com_hypertension == "Yes"),
+  modname = "Sens analysis - Subgroup hypertension"
+)
+out15 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
+  weightsmy = "ps_raasiarni",
+  data = pop %>% filter(sos_com_renal == "Yes"),
+  modname = "Sens analysis - Subgroup kidney disease"
+)
+out16 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
+  weightsmy = "ps_raasiarni",
+  data = pop %>% filter(sos_com_ihd == "Yes"),
+  modname = "Sens analysis - Subgroup IHD"
+)
+out17 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
+  weightsmy = "ps_raasiarni",
+  data = pop %>% filter(sos_com_diabetes == "Yes"),
+  modname = "Sens analysis - Subgroup Diabetes"
+)
+out18 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
+  weightsmy = "ps_raasiarni",
+  data = pop %>% filter(scb_region_stockholm == "Yes"),
+  modname = "Sens analysis - Subgroup Region Stockholm"
+)
+out19 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_arni", "sos_ddr_raasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
+  weightsmy = "ps_arni",
+  data = pop %>% filter(sos_com_hf == "Yes"),
+  modname = "Sens analysis - ARNI in HF"
+)
+out110 <- ormy(
+  event = "sos_out_hospbleed",
+  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns),
+  weightsmy = "ps_raasiarni",
+  data = pop,
+  modname = "Negative control - Bleed"
+)
+
+## MRA
+out21 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns),
+  weightsmy = "ps_mra",
+  data = pop,
+  modname = "Confirmed covid"
+)
+out22 <- ormy(
+  event = "sos_out_covidall",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns),
+  weightsmy = "ps_mra",
+  data = pop,
+  modname = "Secondary analysis - Covid all"
+)
+out23 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_hf"]),
+  weightsmy = "ps_mra",
+  data = pop %>% filter(sos_com_hf == "Yes"),
+  modname = "Sens analysis - Subgroup HF"
+)
+out24 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
+  weightsmy = "ps_mra",
+  data = pop %>% filter(sos_com_hypertension == "Yes"),
+  modname = "Sens analysis - Subgroup hypertension"
+)
+out25 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_renal"]),
+  weightsmy = "ps_mra",
+  data = pop %>% filter(sos_com_renal == "Yes"),
+  modname = "Sens analysis - Subgroup kidney disease"
+)
+out26 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_ihd"]),
+  weightsmy = "ps_mra",
+  data = pop %>% filter(sos_com_ihd == "Yes"),
+  modname = "Sens analysis - Subgroup IHD"
+)
+out27 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
+  weightsmy = "ps_mra",
+  data = pop %>% filter(sos_com_diabetes == "Yes"),
+  modname = "Sens analysis - Subgroup Diabetes"
+)
+out29 <- ormy(
+  event = "sos_out_hospcovidconfirmed",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
+  weightsmy = "ps_mra",
+  data = pop %>% filter(scb_region_stockholm == "Yes"),
+  modname = "Sens analysis - Subgroup Region Stockholm"
+)
+out210 <- ormy(
+  event = "sos_out_hospbleed",
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns),
+  weightsmy = "ps_mra",
+  data = pop,
+  modname = "Negative control - Bleed"
+)
+
+outall <- rbind(out11, out12, out13, out14, out15, out16, out17, out18, out19, out110,
+                out21, out22, out23, out24, out25, out26, out27, out29, out210
+                )
+
+write.xlsx(outall, paste0("./output/tabs/outcovid_", Sys.Date(), ".xlsx"), rowNames = FALSE)
+
+
+mykable(outall,
+  fontsize = 6,
+  caption = "Outcome Covid",
+  longtable = TRUE
+)  %>%
+  landscape() 
+```

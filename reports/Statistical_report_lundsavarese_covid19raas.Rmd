@@ -1,0 +1,182 @@
+---
+title: 'Statistical report: Covid-19 vs RAASi'
+subtitle: 'DRAFT'
+author: 'Statistician: Lina Benson'
+  
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 7
+    fig_width: 7
+    number_sections: yes
+link-citations: yes
+bibliography: references.bib
+nocite: '@*'
+header-includes:
+   - \usepackage{draftwatermark}
+---
+
+\newpage 
+\tableofcontents 
+\listoffigures
+\listoftables
+\newpage
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, include = TRUE, comment = "",
+  warning = FALSE, message = FALSE, fig.pos = "H",
+  fig.path = "../output/figs/"
+)
+options(knitr.kable.NA = "")
+```
+
+```{r adjust_directory_if_needed, include=FALSE}
+# Uncomment lines below if rmd file is placed in a subdirectory
+knitr::opts_knit$set(root.dir = normalizePath("../"))
+```
+
+```{r load_project}
+# 1. Set options in config/global.dcf
+# 2. Load packages listed in config/global.dcf
+# 3. Import functions and code in lib directory
+
+ProjectTemplate::reload.project()
+
+source("./src/vars.R")
+
+cacheon <- TRUE
+```             
+
+# Data handling
+
+## Data source
+
+XXX
+
+Note that data after 2018 is preliinary and XXXXXX.  
+
+## Index date
+
+Index date is defined as 2020-02-01 (first covid-19 case in Sweden end Jan).
+
+## Population 
+
+The population consists of a person with any of the following: hypertension, diabetes, ischemic 
+heart disease, heart failure, kidney disease defined from the patientregistry 
+(in-patient or out-patient) from 1997 (1998 Skåne) up until 2020-02-01 and 
+alive and not migrated at 2020-02-01. 
+
+```{r flow}
+mykable(flow, caption = "Flowchart")
+```
+
+## Created variables 
+
+
+```{r outcodes}
+mykable(outcommeta, caption = "Comorbidities and outcomes from NPR")
+```
+
+Outcomes covid and negative controls are after index date (2020-02-01). 
+Other outcomes are after first confirmed covid.  
+
+Note to self: Länka sv besök för utfall???
+
+Note to self: Rerun prep_sosdata (remove missing INDATUM)
+
+The treatments were derived from the Dispensed Drug Registry where 
+use was defined as dispensed drug within 5 months prior to index date. 
+The following ATC codes were used to define the respective treatments: 
+
+```{r atc}
+mykable(metalm, caption = "Treatments from DDR")
+```
+
+# Statistical analysis 
+
+## General
+
+All analyses were performed using `r sessionInfo()$R.version$version.string` [@r]. 
+The level of significance is set to 5%, two-sided. No adjustment for multiple 
+comparisons were made and therefore the results should be viewed with some care.
+
+## Missing data
+
+Will be some missing data for education but otherwise pretty much no missing data. 
+Imputation is hassle (and can limit chooice of models) so try to avoid. 
+
+## Propensity scores
+
+A propensity score for treatment with raas/arni, arni (within subgroup with HF) 
+and mra respectivly was estimated for each patient with 
+logistic regression with variables indicated in Table \ref{tab:tab1}. 
+Continuous variables were modeled using 
+cubic splines with 4 dfs. The propensity score was then incorporated in the model 
+by inverse probability weighted together with the original variables. 
+Weights were truncated at 10.  
+
+Note to self: bootstrapped ci??? computational time = :(.
+
+## Baseline characteristics
+
+```{r, child = "../src/venndiagram.Rmd"}
+
+```
+
+```{r, child = "../src/tab1.Rmd"}
+
+```
+
+## Outcomes
+
+The following outcomes are considered: 
+
+1. confirmed covid-19 (U071) in inpatient PAR HDIA or DORS ULORSAK
+2. covid-19 (U071, U072, Z861A, KVÅ ZV100) in PAR (in-and out-patient, any position) 
+or DORS any position
+
+The primary endpoint is considered to be confirmed covid-19. 
+
+### Subgroups
+
+By indication. 
+
+Only people in Stockholms län. 
+
+```{r, child = "../src/outcovidtab.Rmd"}
+
+```
+
+
+```{r, child = "../src/outtab.Rmd"}
+
+```
+
+```{r, child = "../src/km.Rmd"}
+
+```
+
+\clearpage
+\newpage
+
+# Reproducibility
+
+## R session information {#sessioninfo}
+
+`r sessionInfo()$R.version$version.string` [@r] is used, for more details see below.
+
+```{r sessinfo}
+sessionInfo()
+```
+
+## R code
+
+The R code for all data handling and statistical analyses are found: XXX. On publication
+the repository will be made public so as to 
+link to it from the resulting article for increased transparency and code sharing.
+No data or output is stored in the repository. 
+
+# References
