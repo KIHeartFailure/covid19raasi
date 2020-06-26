@@ -14,7 +14,6 @@ atersenpnr <- fodelseuppg %>%
 
 # Country of birth, sex and age -------------------------------------------
 
-
 fodelseuppg <- fodelseuppg %>%
   group_by(LopNr) %>%
   arrange(desc(SenPNr)) %>%
@@ -95,19 +94,27 @@ rtb <- rtb %>%
 
 # Migration ---------------------------------------------------------------
 
-
-migration <- migration %>%
+emigration <- migration %>%
   group_by(LopNr) %>%
-  arrange(LopNr, Datum) %>%
+  arrange(Datum) %>%
   slice(n()) %>%
   ungroup() %>%
   filter(Posttyp == "Utv") %>%
-  mutate(scb_migrated = 1) %>%
+  mutate(scb_emigrated = 1) %>%
   select(LopNr, starts_with("scb_"))
 
+immigration <- migration %>%
+  mutate(migdat = ymd(Datum)) %>%
+  group_by(LopNr) %>%
+  arrange(Datum) %>%
+  slice(n()) %>%
+  ungroup() %>%
+  filter(Posttyp == "Inv" &
+           migdat >= ymd("20150101")) %>%
+  mutate(scb_immigratedpost2015 = 1) %>%
+  select(LopNr, starts_with("scb_"))
 
 # All ---------------------------------------------------------------------
-
 
 pop <- Reduce(
   function(...) {
@@ -115,8 +122,8 @@ pop <- Reduce(
       by = "LopNr"
     )
   },
-  list(atersenpnr, migration, fodelseuppg, rtb, lisa, antalbarn)
-) 
+  list(atersenpnr, emigration, immigration, fodelseuppg, rtb, lisa, antalbarn)
+)
 
 pop <- pop %>%
   mutate(indexdtm = global_indexdtm)

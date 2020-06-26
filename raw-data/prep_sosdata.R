@@ -1,9 +1,11 @@
 
+ProjectTemplate::reload.project(cache_loading = FALSE)
+
 sospath <- "./raw-data/SOS/"
 
 # Data 2019, 2020 ov, sv --------------------------------------------------
 
-load(paste0(sospath, "TEMPdata/svov_cov.RData"))
+load(paste0(sospath, "tmpdata/svov_cov.RData"))
 
 svov_cov <- bind_rows(
   sv_cov2019 %>% mutate(sos_source = "sv"),
@@ -27,7 +29,7 @@ svov_cov <- svov_cov %>%
 
 svov_cov <- prep_sosdata(svov_cov, utdatum = FALSE)
 
-save(file = paste0(sospath, "TEMPdata/svov_cov_prep.RData"), "svov_cov")
+save(file = paste0(sospath, "tmpdata/svov_cov_prep.RData"), "svov_cov")
 
 rm(list = c(
   "sv_cov2019",
@@ -39,7 +41,7 @@ rm(list = c(
 
 # SV ----------------------------------------------------------------------
 
-load(paste0(sospath, "TEMPdata/sv.RData"))
+load(paste0(sospath, "tmpdata/sv.RData"))
 
 sv <- sv %>%
   select(-starts_with("OPD"), -KON, -ALDER, -MVO, -VTID, -UTSATT, -PVARD, -lk, -LKF, -INDATUMA, -UTDATUMA) %>%
@@ -57,13 +59,13 @@ sv <- sv %>%
 
 sv <- prep_sosdata(sv, utdatum = FALSE)
 
-save(file = paste0(sospath, "TEMPdata/sv_prep.RData"), "sv")
+save(file = paste0(sospath, "tmpdata/sv_prep.RData"), "sv")
 
 rm(sv)
 
 # OV ----------------------------------------------------------------------
 
-load(paste0(sospath, "TEMPdata/ov.RData"))
+load(paste0(sospath, "tmpdata/ov.RData"))
 
 ov <- ov %>%
   select(-starts_with("OPD"), -KON, -ALDER, -MVO, -PVARD, -lk, -LKF, -INDATUMA) %>%
@@ -81,16 +83,16 @@ ov <- ov %>%
 
 ov <- prep_sosdata(ov, utdatum = FALSE)
 
-save(file = paste0(sospath, "TEMPdata/ov_prep.RData"), "ov")
+save(file = paste0(sospath, "tmpdata/ov_prep.RData"), "ov")
 
 rm(ov)
 
 
 # All together now https://www.youtube.com/watch?v=73lj5qJbrms ------------
 
-load(paste0(sospath, "TEMPdata/svov_cov_prep.RData"))
-load(paste0(sospath, "TEMPdata/sv_prep.RData"))
-load(paste0(sospath, "TEMPdata/ov_prep.RData"))
+load(paste0(sospath, "tmpdata/svov_cov_prep.RData"))
+load(paste0(sospath, "tmpdata/sv_prep.RData"))
+load(paste0(sospath, "tmpdata/ov_prep.RData"))
 
 patreg <- bind_rows(
   sv,
@@ -107,5 +109,3 @@ patreg <- patreg %>%
   mutate(LopNr = as.numeric(LopNr))
 
 save(file = "./data/rawData_sos_patreg.RData", "patreg")
-
-# link sv for outcomes (post index) ???

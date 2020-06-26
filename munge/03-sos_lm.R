@@ -1,15 +1,19 @@
 
-# within 5 months prior to index 
+# Treatments from the DDR -------------------------------------------------
 
-lm <- lm %>% 
-  filter(EDATUM >= global_indexdtm - 30.5 * 5, 
-         EDATUM <= global_indexdtm)
+
+# within 5 months prior to index
+
+lm <- lm %>%
+  filter(
+    EDATUM >= global_indexdtm - 30.5 * 5,
+    EDATUM <= global_indexdtm
+  )
 
 lmtreats <- function(atc, treatname) {
   lmtmp2 <- lm %>%
     mutate(
-      atcneed = stringr::str_detect(ATC, atc),
-      diff = as.numeric(EDATUM - global_indexdtm)
+      atcneed = stringr::str_detect(ATC, atc)
     ) %>%
     filter(
       atcneed
@@ -52,11 +56,14 @@ lmtreats("^A10A", "insulin")
 lmtreats("^A10B", "oralantidiabetic")
 
 
-colnames(metalm) <- c("Treat", "ATC")
+colnames(metalm) <- c("Variable", "ATC")
 metalm <- metalm %>%
   as_tibble() %>%
-  mutate(ATC = gsub("^", "", ATC, fixed = TRUE),
-         ATC = gsub("(", "", ATC, fixed = TRUE),
-         ATC = gsub(")", "", ATC, fixed = TRUE),
-         ATC = gsub("?!", " excl. ", ATC, fixed = TRUE)
+  mutate(
+    ATC = gsub("^", "", ATC, fixed = TRUE),
+    ATC = gsub("(", "", ATC, fixed = TRUE),
+    ATC = gsub(")", "", ATC, fixed = TRUE),
+    ATC = gsub("?!", " excl.", ATC, fixed = TRUE),
+    Registry = "Dispensed Drug Registry",
+    Period = "-5mo-0",
   )

@@ -13,8 +13,6 @@ output:
 link-citations: yes
 bibliography: references.bib
 nocite: '@*'
-header-includes:
-   - \usepackage{draftwatermark}
 ---
 
 \newpage 
@@ -45,54 +43,81 @@ knitr::opts_knit$set(root.dir = normalizePath("../"))
 
 ProjectTemplate::reload.project()
 
-source("./src/vars.R")
-
 cacheon <- TRUE
 ```             
 
 # Data handling
 
-## Data source
+## Data sources
 
-XXX
+### SCB
 
-Note that data after 2018 is preliinary and XXXXXX.  
+Län (Stockholm), civil status and family type are from RTB as of 2019-12-31. 
+Age, sex, country of birth and number of children is also from 2019-12-31.
+Disposable income and education are from LISA 2018.
 
-## Index date
+### Socialstyrelsen
 
-Index date is defined as 2020-02-01 (first covid-19 case in Sweden end Jan).
+Comorbidities and covid-19 outcome are derived from the National Patient Registry 
+(in-patient or out-patient) from 1997 (1998 Skåne) 
+and treatments from the Dispensed Drug Registry. 
+
+Note that data after 2018 is preliminary for the National Patient Registry and 
+Cause of Death Registry. From Socialstyrelsens homepage:
+"Patientregistret kommer göras tillgängligt för utlämnanden för forskningsprojekt
+och statistikbeställningar redan en eller två månader efter referensmånaden. De
+data som görs tillgängliga kommer delvis vara ofullständiga, framför allt
+kommer det med hög sannolikhet att saknas diagnoskoder för delar av
+materialet. Regionala skillnader avseende kvalitet kommer därför att finnas i de
+data som görs tillgängliga. Fullständiga data i patientregistret beräknas finnas tre
+månader efter rapporterad period.
+Dödsorsaksintyg för dödsfall som är relaterade till covid-19 kommer kodas med
+förtur, så att data om sådana dödsfall kommer vara tillgängliga cirka fyra veckor
+efter dödsfallet"
+
+Utöver detta information från handläggare från Socialstyrelsn e-post: 
+"patientregistret slutenvård år 2020 kan det finnas pågående vårdtillfällen 
+(dvs. vårdtillfällen utan  utskrivningsdatum). Jag vet inte hur ni hanterar 
+dessa, men det kan vara bra för dig att veta. Eftersom diagnos ofta fastställt 
+vid utskrivning kan diagnoserna på dessa vårdtillfällen vara lite ”skakiga”. 
+
+## Time period
+
+Index date is defined as `r global_indexdtm` (first covid-19 case in Sweden end Jan). 
+End of follow-up is defined as `r global_enddtm`.
 
 ## Population 
 
-The population consists of a person with any of the following: hypertension, diabetes, ischemic 
-heart disease, heart failure, kidney disease defined from the patientregistry 
-(in-patient or out-patient) from 1997 (1998 Skåne) up until 2020-02-01 and 
-alive and not migrated at 2020-02-01. 
+The population consists of a person with any of the following: hypertension, 
+diabetes, ischemic heart disease, heart failure, kidney disease defined 
+from the NPR (in-patient or out-patient) from 1997 (1998 Skåne) 
+up until 2020-02-01 and alive and not migrated at 2020-02-01. 
 
 ```{r flow}
 mykable(flow, caption = "Flowchart")
 ```
 
+\clearpage
+\newpage
+
 ## Created variables 
 
-
 ```{r outcodes}
-mykable(outcommeta, caption = "Comorbidities and outcomes from NPR")
+mykable(metaout, caption = "Comorbidities and outcomes from NPR")
 ```
-
-Outcomes covid and negative controls are after index date (2020-02-01). 
-Other outcomes are after first confirmed covid.  
-
-Note to self: Länka sv besök för utfall???
-
-Note to self: Rerun prep_sosdata (remove missing INDATUM)
-
-The treatments were derived from the Dispensed Drug Registry where 
-use was defined as dispensed drug within 5 months prior to index date. 
-The following ATC codes were used to define the respective treatments: 
 
 ```{r atc}
 mykable(metalm, caption = "Treatments from DDR")
+```
+
+### Outcome Covid-19
+
+The outcome is defined as hospitalized (in-patient) confirmed covid-19 (U071) as main 
+diagnosis (HDIA) in the National Patient Registry OR as confirmed covid-19 (U071)
+as underlying cause of death (ULORSAK) in Cause of Death Registry. 
+
+```{r, child = "../src/deskstatcovid.Rmd"}
+
 ```
 
 # Statistical analysis 
@@ -105,24 +130,21 @@ comparisons were made and therefore the results should be viewed with some care.
 
 ## Missing data
 
-Will be some missing data for education but otherwise pretty much no missing data. 
-Imputation is hassle (and can limit chooice of models) so try to avoid. 
+Some missing data for scb variables (not sex, age, number of children, region). 
+In models including these variables observations with missing values are excluded. 
 
 ## Propensity scores
 
-A propensity score for treatment with raas/arni, arni (within subgroup with HF) 
-and mra respectivly was estimated for each patient with 
-logistic regression with variables indicated in Table \ref{tab:tab1}. 
+A propensity score for treatment with RASi and MRA respectively was estimated for 
+each patient with logistic regression with variables indicated in Table \ref{tab:tab1}. 
 Continuous variables were modeled using 
 cubic splines with 4 dfs. The propensity score was then incorporated in the model 
-by inverse probability weighted together with the original variables. 
+by inverse probability weights together with the original variables. 
 Weights were truncated at 10.  
-
-Note to self: bootstrapped ci??? computational time = :(.
 
 ## Baseline characteristics
 
-```{r, child = "../src/venndiagram.Rmd"}
+```{r, child = "../src/venn.Rmd"}
 
 ```
 
@@ -130,34 +152,71 @@ Note to self: bootstrapped ci??? computational time = :(.
 
 ```
 
-## Outcomes
+```{r, child = "../src/tab1covid.Rmd"}
 
-The following outcomes are considered: 
+```
 
-1. confirmed covid-19 (U071) in inpatient PAR HDIA or DORS ULORSAK
-2. covid-19 (U071, U072, Z861A, KVÅ ZV100) in PAR (in-and out-patient, any position) 
-or DORS any position
+## Covid-19
 
-The primary endpoint is considered to be confirmed covid-19. 
-
-### Subgroups
-
-By indication. 
-
-Only people in Stockholms län. 
+The association between RASi/MRA and Covid-19 was investigated using logistic 
+regression models for partly the whole cohort and partly predefined subgroups. 
 
 ```{r, child = "../src/outcovidtab.Rmd"}
 
 ```
 
+### Assumptions
+
+Outliers were investigated with Cook's distance and multicollinearity 
+with the variance inflation factor for Adj ps IPW model in the whole cohort. 
+
+\clearpage
+\newpage
+
+### Unmeasured confounders
+
+Interpretation is that if there is an unmeasured confounder with an association 
+with covid as 1.3 (harmful), for example crappy eGFR, and crappy eGFR is present 
+in the RASi group with 40% and in the no RASi group with 60%, the effect of RASi 
+would be non-significant. If you up the OR to 2 (similar proportions) you have 
+a harmful effect and if you up the OR to 3 and you have 10% of this confounder 
+in the RASi and 80% in the no RASi you will have a VERY harmful effect. [@unmeasuredc]
+
+```{r, child = "../src/forest_unmeasuredconf.Rmd"}
+
+```
+
+\clearpage
+\newpage
+
+## All-cause mortality after Covid-19
+
+The association between RASi/MRA and all-cause mortality after Covid-19 was 
+investigated using cox regression models for partly the whole cohort and 
+partly predefined subgroups. Only patients with Covid-19 were included in the 
+models.
+
+```{r, child = "../src/deskstatdeaths.Rmd"}
+
+```
+
+NOTE: Socialstyrelsen are prioritizing coding Covid-19 deaths. 
+That means the probably a larger proportion of the uncoded deaths are not 
+covid-19 compared to the coded.   
+
+```{r, child = "../src/km.Rmd"}
+
+```
 
 ```{r, child = "../src/outtab.Rmd"}
 
 ```
 
-```{r, child = "../src/km.Rmd"}
+### Assumptions
 
-```
+The proportional hazards assumption was investigated using the scaled Schoenfeld 
+residuals (cox.zph in [@survival-package]) for the Adj ps IPW model in the 
+whole cohort. Possible outliers were visually inspected by plotting the dfbetas. 
 
 \clearpage
 \newpage
@@ -174,7 +233,8 @@ sessionInfo()
 
 ## R code
 
-The R code for all data handling and statistical analyses are found: XXX. On publication
+The R code for all data handling and statistical analyses are found: 
+https://github.com/KIHeartFailure/covid19rasi. On publication 
 the repository will be made public so as to 
 link to it from the resulting article for increased transparency and code sharing.
 No data or output is stored in the repository. 

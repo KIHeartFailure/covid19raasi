@@ -1,6 +1,5 @@
 
 
-
 # Comorbidities -----------------------------------------------------------
 
 pop <- create_sosvar(
@@ -94,7 +93,7 @@ pop <- create_sosvar(
   diavar = DIA_all,
   type = "com",
   name = "anemia",
-  diakod = " D50| D6[0-4]",
+  diakod = " D5| D6[0-4]",
   valsclass = "num",
   warnings = FALSE
 )
@@ -337,7 +336,7 @@ pop <- create_sosvar(
   opvar = OP_all,
   type = "com",
   name = "bleed",
-  diakod = " S064| S065| S066| I850| I983| K226| K250| K252| K254| K256| K260| K262| K264| K266| K270| K272| K274| K276| K280| K284| K286| K290| K625| K661| K920| K921| K922| H431| N02| R04| R58| T810| D629",
+  diakod = " S06[4-6]| I850| I983| K226| K250| K252| K254| K256| K260| K262| K264| K266| K270| K272| K274| K276| K280| K284| K286| K290| K625| K661| K92[0-2]| H431| N02| R04| R58| T810| D629",
   opkod = " DR029",
   valsclass = "num",
   warnings = FALSE
@@ -357,31 +356,9 @@ pop <- create_sosvar(
   diakod = " U071",
   censdate = censdtm,
   valsclass = "num",
-  warnings = FALSE, 
+  warnings = FALSE,
   meta_reg = "NPR (in)"
 )
-
-pop <- create_sosvar(
-  sosdata = patreg,
-  cohortdata = pop,
-  patid = LopNr,
-  indexdate = indexdtm,
-  sosdate = INDATUM,
-  diavar = DIA_all,
-  opvar = OP_all,
-  type = "out",
-  name = "covidall",
-  diakod = " U071| U072| Z861A",
-  opkod = "ZV100",
-  censdate = censdtm,
-  valsclass = "num",
-  warnings = FALSE
-)
-
-pop <- pop %>%
-  mutate(coviddtm = case_when(sos_out_hospcovidconfirmed == "Yes" ~ indexdtm + sos_outtime_hospcovidconfirmed, 
-                              TRUE ~ as.Date(NA)))
-
 
 # Negative control -----------------------------------------------------
 
@@ -397,7 +374,7 @@ pop <- create_sosvar(
   diakod = " B18| I85| I864| I982| K70| K710| K711| K71[3-7]| K7[2-4]| K760| K76[2-9]",
   censdate = censdtm,
   valsclass = "num",
-  warnings = FALSE, 
+  warnings = FALSE,
   meta_reg = "NPR (in)"
 )
 
@@ -413,7 +390,7 @@ pop <- create_sosvar(
   diakod = " C",
   censdate = censdtm,
   valsclass = "num",
-  warnings = FALSE, 
+  warnings = FALSE,
   meta_reg = "NPR (in)"
 )
 
@@ -427,120 +404,11 @@ pop <- create_sosvar(
   opvar = OP_all,
   type = "out",
   name = "hospbleed",
-  diakod = " S064| S065| S066| I850| I983| K226| K250| K252| K254| K256| K260| K262| K264| K266| K270| K272| K274| K276| K280| K284| K286| K290| K625| K661| K920| K921| K922| H431| N02| R04| R58| T810| D629",
+  diakod = " S06[4-6]| I850| I983| K226| K250| K252| K254| K256| K260| K262| K264| K266| K270| K272| K274| K276| K280| K284| K286| K290| K625| K661| K92[0-2]| H431| N02| R04| R58| T810| D629",
   opkod = " DR029",
   censdate = censdtm,
   valsclass = "num",
-  warnings = FALSE, 
-  meta_reg = "NPR (in)"
-)
-
-# Outcomes ----------------------------------------------------------------
-
-
-pop <- create_sosvar(
-  sosdata = patreg %>% filter(sos_source == "sv"),
-  cohortdata = pop,
-  patid = LopNr,
-  indexdate = coviddtm,
-  sosdate = INDATUM,
-  diavar = HDIA,
-  type = "out",
-  name = "hosphf",
-  diakod = " I110| I130| I132| I255| I420| I423| 142[5-9]| I43| I50| J81| K761| R57",
-  censdate = censdtm,
-  valsclass = "num",
-  warnings = FALSE, 
-  meta_reg = "NPR (in)"
-)
-pop <- create_sosvar(
-  sosdata = patreg %>% filter(sos_source == "sv"),
-  cohortdata = pop,
-  patid = LopNr,
-  indexdate = coviddtm,
-  sosdate = INDATUM,
-  diavar = HDIA,
-  type = "out",
-  name = "hospstroketia",
-  diakod = " I6[0-4]| G45",
-  censdate = censdtm,
-  valsclass = "num",
-  warnings = FALSE, 
-  meta_reg = "NPR (in)"
-)
-pop <- create_sosvar(
-  sosdata = patreg %>% filter(sos_source == "sv"),
-  cohortdata = pop,
-  patid = LopNr,
-  indexdate = coviddtm,
-  sosdate = INDATUM,
-  diavar = HDIA,
-  type = "out",
-  name = "hospmi",
-  diakod = " I21| I22",
-  censdate = censdtm,
-  valsclass = "num",
-  warnings = FALSE, 
-  meta_reg = "NPR (in)"
-)
-pop <- create_sosvar(
-  sosdata = patreg %>% filter(sos_source == "sv"),
-  cohortdata = pop,
-  patid = LopNr,
-  indexdate = coviddtm,
-  sosdate = INDATUM,
-  diavar = HDIA,
-  type = "out",
-  name = "hospaf",
-  diakod = " I48",
-  censdate = censdtm,
-  valsclass = "num",
-  warnings = FALSE, 
-  meta_reg = "NPR (in)"
-)
-pop <- create_sosvar(
-  sosdata = patreg %>% filter(sos_source == "sv"),
-  cohortdata = pop,
-  patid = LopNr,
-  indexdate = coviddtm,
-  sosdate = INDATUM,
-  diavar = HDIA,
-  type = "out",
-  name = "hosppulmonaryembolism",
-  diakod = " I26",
-  censdate = censdtm,
-  valsclass = "num",
-  warnings = FALSE, 
-  meta_reg = "NPR (in)"
-)
-pop <- create_sosvar(
-  sosdata = patreg %>% filter(sos_source == "sv"),
-  cohortdata = pop,
-  patid = LopNr,
-  indexdate = coviddtm,
-  sosdate = INDATUM,
-  diavar = OP_all,
-  type = "out",
-  name = "hosprespitorysupport",
-  opkod = " DG001| DG002| DG010| DG017| DG02[0-3]| DG02[5-7]",
-  censdate = censdtm,
-  valsclass = "num",
-  warnings = FALSE, 
-  meta_reg = "NPR (in)"
-)
-pop <- create_sosvar(
-  sosdata = patreg %>% filter(sos_source == "sv"),
-  cohortdata = pop,
-  patid = LopNr,
-  indexdate = coviddtm,
-  sosdate = INDATUM,
-  diavar = OP_all,
-  type = "out",
-  name = "hospecmo",
-  opkod = " DV023",
-  censdate = censdtm,
-  valsclass = "num",
-  warnings = FALSE, 
+  warnings = FALSE,
   meta_reg = "NPR (in)"
 )
 
@@ -549,5 +417,11 @@ pop <- pop %>%
   mutate_at(vars(starts_with("sos_com_")), ynfac)
 
 
-outcommeta <- metaout
-rm(metaout)
+metaout <- metaout %>%
+  mutate(
+    Position = gsub("DIA_all", "All DIA", Position),
+    Position = gsub("OP_all", "All OP", Position),
+    Position = gsub("ekod_all", "All Ekod", Position),
+    Period = gsub("0--1095.75", "-3yrs-0", Period),
+    Period = gsub("0-", "-0", Period)
+  )
