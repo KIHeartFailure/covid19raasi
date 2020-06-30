@@ -1,10 +1,10 @@
-```{r kmdeathcovid, fig.cap="1-KM 1 Death from Covid-19"}
-fit <- survfit(Surv(sos_outtime_death, sos_deathcovidconfulorsak == "Yes") ~ sos_ddr_raasiarni,
+```{r kmdeathacrasi, fig.cap="1-KM Death All-cause RASi"}
+fit <- survfit(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_rasi,
   data = pop %>% filter(sos_covidconfirmed == "Yes")
 )
 
 # logrank
-sd <- survdiff(Surv(sos_outtime_death, sos_deathcovidconfulorsak == "Yes") ~ sos_ddr_raasiarni,
+sd <- survdiff(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_rasi,
   data = pop %>% filter(sos_covidconfirmed == "Yes")
 )
 p <- dF(pchisq(sd$chisq, length(sd$n) - 1, lower.tail = FALSE), dig = 3, p = TRUE)
@@ -14,14 +14,14 @@ par(mar = c(6, 6, 1, 1) + 0.1)
 # par(mar=c(4, 4, 1, 1) + 0.1)
 plot(fit,
   fun = "event",
-  ylab = "Death from Covid-19 (%)",
+  ylab = "Death (%)",
   xscale = 1,
   yscale = 100,
   col = global_kicols,
   mark.time = FALSE,
   bty = "n",
   # xmax = 365.25,
-  xlim = c(0, 90),
+  xlim = c(0, 80),
   ylim = c(0, 0.6),
   xlab = "Days",
   axes = F,
@@ -31,10 +31,10 @@ plot(fit,
 )
 
 axis(2, seq(0, 0.6, 0.1), seq(0, 0.6, 0.1) * 100, las = 2)
-axis(1, seq(0, 90, 30), seq(0, 90, 30))
+axis(1, seq(0, 80, 20), seq(0, 80, 20))
 
 m11 <- 1 - summary(fit, 70)$surv
-text(70, m11 + c(+.04, -.04), c("No RAASi/ARNI", "RAASi/ARNI"), pos = 4)
+text(60, m11 + c(+.025, -.03), c("No RASi", "RASi"), pos = 4)
 
 text(30, 0.35, paste0("Log-rank p = ", p), pos = 4)
 
@@ -43,19 +43,19 @@ mtext("No. at risk", side = 1, line = 3, at = -12, adj = 0, cex = 1)
 mtext("No", side = 1, line = 4, at = -10, adj = 0, cex = 1)
 mtext("Yes", side = 1, line = 5, at = -10, adj = 0, cex = 1)
 
-nrisk <- summary(fit, seq(0, 90, 30))$n.risk
+nrisk <- summary(fit, seq(0, 80, 20))$n.risk
 
-axis(1, at = seq(0, 90, 30), labels = nrisk[1:4], line = 3, tick = FALSE, cex.axis = 1)
-axis(1, at = seq(0, 90, 30), labels = nrisk[5:8], line = 4, tick = FALSE, cex.axis = 1)
+axis(1, at = seq(0, 80, 20), labels = nrisk[1:5], line = 3, tick = FALSE, cex.axis = 1)
+axis(1, at = seq(0, 80, 20), labels = nrisk[6:10], line = 4, tick = FALSE, cex.axis = 1)
 ```
 
-```{r kmdeathac, fig.cap="1-KM 1 Death All-cause"}
-fit <- survfit(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_raasiarni,
+```{r kmdeathacmra, fig.cap="1-KM Death All-cause MRA"}
+fit <- survfit(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_mra,
   data = pop %>% filter(sos_covidconfirmed == "Yes")
 )
 
 # logrank
-sd <- survdiff(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_raasiarni,
+sd <- survdiff(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_mra,
   data = pop %>% filter(sos_covidconfirmed == "Yes")
 )
 p <- dF(pchisq(sd$chisq, length(sd$n) - 1, lower.tail = FALSE), dig = 3, p = TRUE)
@@ -65,14 +65,14 @@ par(mar = c(6, 6, 1, 1) + 0.1)
 # par(mar=c(4, 4, 1, 1) + 0.1)
 plot(fit,
   fun = "event",
-  ylab = "Death all-cause (%)",
+  ylab = "Death (%)",
   xscale = 1,
   yscale = 100,
   col = global_kicols,
   mark.time = FALSE,
   bty = "n",
   # xmax = 365.25,
-  xlim = c(0, 90),
+  xlim = c(0, 80),
   ylim = c(0, 0.6),
   xlab = "Days",
   axes = F,
@@ -82,10 +82,10 @@ plot(fit,
 )
 
 axis(2, seq(0, 0.6, 0.1), seq(0, 0.6, 0.1) * 100, las = 2)
-axis(1, seq(0, 90, 30), seq(0, 90, 30))
+axis(1, seq(0, 80, 20), seq(0, 80, 20))
 
 m11 <- 1 - summary(fit, 70)$surv
-text(70, m11 + c(+.04, -.04), c("No RAASi/ARNI", "RAASi/ARNI"), pos = 4)
+text(60, m11 + c(-.03, +.025), c("No MRA", "MRA"), pos = 4)
 
 text(30, 0.35, paste0("Log-rank p = ", p), pos = 4)
 
@@ -94,8 +94,8 @@ mtext("No. at risk", side = 1, line = 3, at = -12, adj = 0, cex = 1)
 mtext("No", side = 1, line = 4, at = -10, adj = 0, cex = 1)
 mtext("Yes", side = 1, line = 5, at = -10, adj = 0, cex = 1)
 
-nrisk <- summary(fit, seq(0, 90, 30))$n.risk
+nrisk <- summary(fit, seq(0, 80, 20))$n.risk
 
-axis(1, at = seq(0, 90, 30), labels = nrisk[1:4], line = 3, tick = FALSE, cex.axis = 1)
-axis(1, at = seq(0, 90, 30), labels = nrisk[5:8], line = 4, tick = FALSE, cex.axis = 1)
+axis(1, at = seq(0, 80, 20), labels = nrisk[1:5], line = 3, tick = FALSE, cex.axis = 1)
+axis(1, at = seq(0, 80, 20), labels = nrisk[6:10], line = 4, tick = FALSE, cex.axis = 1)
 ```

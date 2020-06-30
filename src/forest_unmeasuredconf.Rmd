@@ -1,0 +1,130 @@
+```{r forestunmeasuredconf, cache=cacheon, fig.cap="Unmeasured confounders"}
+
+outforest <- data.frame(matrix(NA, ncol = 5, nrow = 5))
+colnames(outforest) <- c("Model", "ORtext", "logOR", "loglci", "loguci")
+
+# Crude
+mod <- glm(sos_covidconfirmed == "Yes" ~ sos_ddr_rasi,
+  data = pop,
+  family = binomial(link = "logit")
+)
+smod <- summary(mod)
+
+outforest[1, 1] <- "Crude"
+outforest[1, 3] <- smod$coefficients[2, 1]
+outforest[1, 4] <- smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]
+outforest[1, 5] <- smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]
+outforest[1, 2] <- paste0(
+  dF(exp(outforest[1, 3]), dig = 2),
+  " (", dF(exp(outforest[1, 4]), dig = 2),
+  "-", dF(exp(outforest[1, 5]), dig = 2), ")"
+)
+
+# Adj pS IPW
+
+mod <- glm(formula(paste(
+  "sos_covidconfirmed == 'Yes' ~ ",
+  paste(c("sos_ddr_rasi", "sos_ddr_mra", modvarsns), collapse = " + ")
+)),
+data = pop,
+family = binomial(link = "logit"),
+weights = weight_rasi
+)
+
+smod <- jtools::get_robust_se(mod, type = "HC0")
+  
+# cores_2_use <- parallel::detectCores() - 1
+# se <- sqrt(diag(sandwich::vcovBS(mod, cores = cores_2_use, R = 100))) will still be running 2065...
+
+outforest[2, 1] <- "Adjusted IPW"
+outforest[2, 3] <- smod$coefs[2, 1]
+outforest[2, 4] <- smod$coefs[2, 1] - global_z05 * smod$coefs[2, 2]
+outforest[2, 5] <- smod$coefs[2, 1] + global_z05 * smod$coefs[2, 2]
+outforest[2, 2] <- paste0(
+  dF(exp(outforest[2, 3]), dig = 2),
+  " (", dF(exp(outforest[2, 4]), dig = 2),
+  "-", dF(exp(outforest[2, 5]), dig = 2), ")"
+)
+
+# Adj with unmeasured confounder I-III
+
+oruc <- c(1.4, 2, 15)
+p <- c(0.7, 0.35)
+
+unconf <- obsSensCCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
+  g0 = oruc,
+  p0 = p[1], p1 = p[2],
+  logOdds = TRUE
+)
+
+outforest[3:5, 1] <- paste0("Adjusted counfounder OR = ", oruc)
+outforest[3:5, 3] <- unconf[[1]][1:3]
+outforest[3:5, 4] <- unconf[[2]][1:3]
+outforest[3:5, 5] <- unconf[[3]][1:3]
+
+outforest[3:5, 2] <- paste0(
+  dF(exp(outforest[3:5, 3]), dig = 2),
+  " (", dF(exp(outforest[3:5, 4]), dig = 2),
+  "-", dF(exp(outforest[3:5, 5]), dig = 2), ")"
+)
+
+cextext <- 0.8
+
+par(mar = c(4, 16, 1, 2) + 0.2)
+
+
+plot(0, 0,
+  type = "h",
+  xlab = NA,
+  xlim = c(
+    log(.7),
+    log(1.7)
+  ),
+  ylim = c(1, nrow(outforest) + .4),
+  axes = FALSE,
+  ylab = NA,
+  main = NA,
+  panel.first = rect(c(log(0.7), log(1), log(1.5)), -1e6, c(log(1), log(1.5), log(1.7)), 1e6, col = c("palegreen3", "darkgoldenrod1", "tomato3"), border = NA)
+)
+
+matplot(rev(outforest$logOR), 1:nrow(outforest),
+  cex = 2,
+  type = "p",
+  pch = 22,
+  bg = 1,
+  col = 1,
+  add = TRUE
+)
+
+
+for (i in 1:nrow(outforest)) {
+  matplot(c(rev(outforest$loglci)[i], rev(outforest$loguci)[i]), c(i, i),
+    type = "l", add = TRUE, col = 1, cex = 2
+  )
+}
+# matplot(c(log(.8), log(.8)), c(-1, nrow(outforest) + 0.5), type = "l", lwd = 2, lty = 1, add = TRUE, col = "green") # neutral
+matplot(c(log(1), log(1)), c(-1, nrow(outforest) + 1), type = "l", lwd = 1, lty = 1, add = TRUE, col = 1) # harmful
+matplot(c(log(1.5), log(1.5)), c(-1, nrow(outforest) + 1), type = "l", lwd = 1, lty = 1, add = TRUE, col = 1) # very harmful
+
+axis(1,
+  cex.axis = cextext, at = log(seq(0.7, 1.7, 0.1)),
+  labels = c(0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, NA, 1.5, NA, 1.7)
+)
+
+axis(2,
+  at = 1:nrow(outforest), labels = rev(outforest$Model),
+  cex.axis = cextext, tick = FALSE, las = 2, line = 15, hadj = 0
+)
+
+axis(2,
+  at = c(1:nrow(outforest), nrow(outforest) + 0.5),
+  labels = c(rev(outforest$ORtext), "Odds Ratio (95% CI)"),
+  cex.axis = cextext, tick = FALSE, las = 2, line = 2, hadj = 0.5
+)
+
+
+axis(1,
+  at = 0.04, cex.axis = cextext,
+  labels = "RASi better     No RASi better", line = 1, tick = FALSE
+)
+```

@@ -1,6 +1,5 @@
 ---
-title: 'Statistical report: Covid-19 vs RAASi'
-subtitle: 'DRAFT'
+title: 'Statistical report: Covid-19 vs RASi/MRA'
 author: 'Statistician: Lina Benson'
   
 date: "`r Sys.Date()`"
@@ -75,7 +74,7 @@ Dödsorsaksintyg för dödsfall som är relaterade till covid-19 kommer kodas me
 förtur, så att data om sådana dödsfall kommer vara tillgängliga cirka fyra veckor
 efter dödsfallet"
 
-Utöver detta information från handläggare från Socialstyrelsn e-post: 
+Information from handläggare at Socialstyrelsen via e-mail: 
 "patientregistret slutenvård år 2020 kan det finnas pågående vårdtillfällen 
 (dvs. vårdtillfällen utan  utskrivningsdatum). Jag vet inte hur ni hanterar 
 dessa, men det kan vara bra för dig att veta. Eftersom diagnos ofta fastställt 
@@ -84,14 +83,15 @@ vid utskrivning kan diagnoserna på dessa vårdtillfällen vara lite ”skakiga�
 ## Time period
 
 Index date is defined as `r global_indexdtm` (first covid-19 case in Sweden end Jan). 
-End of follow-up is defined as `r global_enddtm`.
+End of follow-up is defined as `r global_enddtm`, 
+decision based on visual inspection of patterns in NPR and Cause of Death Registry data.
 
 ## Population 
 
-The population consists of a person with any of the following: hypertension, 
-diabetes, ischemic heart disease, heart failure, kidney disease defined 
-from the NPR (in-patient or out-patient) from 1997 (1998 Skåne) 
-up until 2020-02-01 and alive and not migrated at 2020-02-01. 
+The population recieved from Socialstyrelsens consisted of persons with any of the following: 
+hypertension, diabetes, ischemic heart disease, heart failure, kidney disease, obesity or af 
+(ICD codes in Table \ref{tab:outcomcodes}) defined 
+from the NPR (in-patient or out-patient) from 1997 (1998 Skåne) and alive 2020-01-01. 
 
 ```{r flow}
 mykable(flow, caption = "Flowchart")
@@ -102,7 +102,7 @@ mykable(flow, caption = "Flowchart")
 
 ## Created variables 
 
-```{r outcodes}
+```{r outcomcodes}
 mykable(metaout, caption = "Comorbidities and outcomes from NPR")
 ```
 
@@ -126,7 +126,7 @@ as underlying cause of death (ULORSAK) in Cause of Death Registry.
 
 All analyses were performed using `r sessionInfo()$R.version$version.string` [@r]. 
 The level of significance is set to 5%, two-sided. No adjustment for multiple 
-comparisons were made and therefore the results should be viewed with some care.
+comparisons were made and therefore the results should be viewed with care.
 
 ## Missing data
 
@@ -136,11 +136,12 @@ In models including these variables observations with missing values are exclude
 ## Propensity scores
 
 A propensity score for treatment with RASi and MRA respectively was estimated for 
-each patient with logistic regression with variables indicated in Table \ref{tab:tab1}. 
-Continuous variables were modeled using 
+each patient with logistic regression with variables indicated in Table \ref{tab:tab1all}. 
+Continuous variables (age) were modeled using 
 cubic splines with 4 dfs. The propensity score was then incorporated in the model 
-by inverse probability weights together with the original variables. 
-Weights were truncated at 10.  
+using inverse probabilty of treatment weighting, truncated at 10, together 
+with the original variables using sandwich variance estimators 
+(prob more appropriate with bootstrap ci but will take too long). 
 
 ## Baseline characteristics
 
@@ -152,57 +153,70 @@ Weights were truncated at 10.
 
 ```
 
-```{r, child = "../src/tab1covid.Rmd"}
-
-```
-
 ## Covid-19
 
 The association between RASi/MRA and Covid-19 was investigated using logistic 
-regression models for partly the whole cohort and partly predefined subgroups. 
-
-```{r, child = "../src/outcovidtab.Rmd"}
-
-```
+regression models for partly the whole cohort and partly predefined subgroups.
+Variables indicated in Table \ref{tab:tab1all} are included in the models where 
+continuous variables (age) were modeled using cubic splines with 4 dfs. 
 
 ### Assumptions
 
 Outliers were investigated with Cook's distance and multicollinearity 
-with the variance inflation factor for Adj ps IPW model in the whole cohort. 
+with the variance inflation factor for Adj IPW model in the whole cohort. 
+=> No action deemed necessary. 
+
+\clearpage
+\newpage
+
+```{r, child = "../src/outcovidtab.Rmd"}
+
+```
 
 \clearpage
 \newpage
 
 ### Unmeasured confounders
 
-Interpretation is that if there is an unmeasured confounder with an association 
-with covid as 1.3 (harmful), for example crappy eGFR, and crappy eGFR is present 
-in the RASi group with 40% and in the no RASi group with 60%, the effect of RASi 
-would be non-significant. If you up the OR to 2 (similar proportions) you have 
-a harmful effect and if you up the OR to 3 and you have 10% of this confounder 
-in the RASi and 80% in the no RASi you will have a VERY harmful effect. [@unmeasuredc]
+Unmeasured confounders were assessed according to [@unmeasuredc]. 
 
 ```{r, child = "../src/forest_unmeasuredconf.Rmd"}
 
 ```
+
+All unmeasured confounders are presumed to be present 
+in the RASi group with `r p[2]*100`% and in the no RASi group with `r p[1]*100`%. 
+Interpretation: if there is an unmeasured confounder with an association 
+with covid as `r oruc[1]` (harmful), for example eGFR, and eGFR is present 
+in the RASi group with `r p[2]*100`% and in the no RASi group with `r p[1]*100`%, the effect of RASi 
+would be non-significant. If you up the OR to `r oruc[2]` for the unmeasured confounder 
+you have a statistically significant harmful effect and if you up the OR to `r oruc[3]` 
+very harmful effect (>1.5). 
 
 \clearpage
 \newpage
 
 ## All-cause mortality after Covid-19
 
-The association between RASi/MRA and all-cause mortality after Covid-19 was 
-investigated using cox regression models for partly the whole cohort and 
-partly predefined subgroups. Only patients with Covid-19 were included in the 
-models.
-
 ```{r, child = "../src/deskstatdeaths.Rmd"}
 
 ```
 
-NOTE: Socialstyrelsen are prioritizing coding Covid-19 deaths. 
-That means the probably a larger proportion of the uncoded deaths are not 
-covid-19 compared to the coded.   
+The association between RASi/MRA and all-cause mortality after Covid-19 was 
+investigated using cox regression models for partly the whole cohort and 
+partly predefined subgroups. Only patients with Covid-19 were included in the 
+models. Variables indicated in Table \ref{tab:tab1all} are included in the models 
+where continuous variables (age) were modeled using cubic splines with 4 dfs.
+
+### Assumptions
+
+The proportional hazards assumption was investigated using the scaled Schoenfeld 
+residuals (cox.zph in [@survival-package]) for the Adj IPW model in the 
+whole cohort. Possible outliers were visually inspected by plotting the dfbetas. 
+=> Some signs of non-proportial hazards for RASi but no action deemed necessary. 
+
+\clearpage
+\newpage
 
 ```{r, child = "../src/km.Rmd"}
 
@@ -212,14 +226,6 @@ covid-19 compared to the coded.
 
 ```
 
-### Assumptions
-
-The proportional hazards assumption was investigated using the scaled Schoenfeld 
-residuals (cox.zph in [@survival-package]) for the Adj ps IPW model in the 
-whole cohort. Possible outliers were visually inspected by plotting the dfbetas. 
-
-\clearpage
-\newpage
 
 # Reproducibility
 

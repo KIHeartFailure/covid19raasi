@@ -13,4 +13,8 @@ ProjectTemplate::reload.project(
 ProjectTemplate::cache("flow")
 ProjectTemplate::cache("pop")
 ProjectTemplate::cache("metalm")
-ProjectTemplate::cache("outcommeta")
+ProjectTemplate::cache("metaout")
+
+ProjectTemplate::cache("tabvars")
+ProjectTemplate::cache("modvars")
+ProjectTemplate::cache("modvarsns")

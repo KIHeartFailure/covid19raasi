@@ -1,0 +1,143 @@
+```{r venn, cache=cacheon, fig.cap="Venn diagram population"}
+
+popvenn <- pop %>%
+  count(
+    sos_com_ihd,
+    sos_com_hf,
+    sos_com_diabetes,
+    sos_com_renal,
+    sos_com_hypertension
+  ) 
+
+popvenncombo <- c(
+  IHD = popvenn %>% filter(sos_com_ihd == "Yes") %>% count(wt = n) %>% pull(n),
+  HF = popvenn %>% filter(sos_com_hf == "Yes") %>% count(wt = n) %>% pull(n),
+  Diabetes = popvenn %>% filter(sos_com_diabetes == "Yes") %>% count(wt = n) %>% pull(n),
+  Kidney = popvenn %>% filter(sos_com_renal == "Yes") %>% count(wt = n) %>% pull(n),
+  HT = popvenn %>% filter(sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+
+  # 2 way
+  "IHD&HF" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hf == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&Diabetes" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_diabetes == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&Kidney" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_renal == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&HT" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+
+  "HF&Diabetes" = popvenn %>% filter(sos_com_hf == "Yes" & sos_com_diabetes == "Yes") %>% count(wt = n) %>% pull(n),
+  "HF&Kidney" = popvenn %>% filter(sos_com_hf == "Yes" & sos_com_renal == "Yes") %>% count(wt = n) %>% pull(n),
+  "HF&HT" = popvenn %>% filter(sos_com_hf == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+
+  "Diabetes&Kidney" = popvenn %>% filter(sos_com_diabetes == "Yes" & sos_com_renal == "Yes") %>% count(wt = n) %>% pull(n),
+  "Diabetes&HT" = popvenn %>% filter(sos_com_diabetes == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+
+  "Kidney&HT" = popvenn %>% filter(sos_com_renal == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+
+  # 3 way
+  "IHD&HF&Diabetes" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hf == "Yes" & sos_com_diabetes == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&HF&Kidney" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hf == "Yes" & sos_com_renal == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&HF&HT" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hf == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&Diabetes&Kidney" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_diabetes == "Yes" & sos_com_renal == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&Diabetes&HT" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_diabetes == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&Kidney&HT" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_renal == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+
+  "HF&Diabetes&Kidney" = popvenn %>% filter(sos_com_hf == "Yes" & sos_com_diabetes == "Yes" & sos_com_renal == "Yes") %>% count(wt = n) %>% pull(n),
+  "HF&Diabetes&HT" = popvenn %>% filter(sos_com_hf == "Yes" & sos_com_diabetes == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+  "HF&Kidney&HT" = popvenn %>% filter(sos_com_hf == "Yes" & sos_com_renal == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+
+  "Diabetes&Kidney&HT" = popvenn %>% filter(sos_com_diabetes == "Yes" & sos_com_renal == "Yes" & sos_com_hypertension == "Yes") %>%
+    count(wt = n) %>% pull(n),
+
+  # 4 way
+  "IHD&HF&Diabetes&Kidney" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hf == "Yes" &
+    sos_com_diabetes == "Yes" & sos_com_renal == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&HF&Diabetes&HT" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hf == "Yes" &
+    sos_com_diabetes == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&HF&Kidney&HT" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hf == "Yes" &
+    sos_com_renal == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+  "IHD&Diabetes&Kidney&HT" = popvenn %>% filter(sos_com_ihd == "Yes" &
+    sos_com_diabetes == "Yes" & sos_com_renal == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+  "HF&Diabetes&Kidney&HT" = popvenn %>% filter(sos_com_hf == "Yes" &
+    sos_com_diabetes == "Yes" & sos_com_renal == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n),
+
+  # 5 way
+  "IHD&HF&Diabetes&Kidney&HT" = popvenn %>% filter(sos_com_ihd == "Yes" & sos_com_hf == "Yes" &
+    sos_com_diabetes == "Yes" & sos_com_renal == "Yes" & sos_com_hypertension == "Yes") %>% count(wt = n) %>% pull(n)
+)
+
+fit <- venneuler(popvenncombo)
+
+fit$labels <- c(rep("", 5))
+plot(fit, col = global_kicols[c(1, 4, 3, 2, 5)])
+text(
+  fit$centers["IHD", "x"], fit$centers["IHD", "y"] + 0.08,
+  paste0(
+    "IHD\n",
+    popvenn %>%
+      count(sos_com_ihd, wt = n) %>%
+      mutate(
+        percent = dF(n / sum(n) * 100, 0),
+        np = paste0(n, " (", percent, "%)")
+      ) %>%
+      filter(sos_com_ihd == "Yes") %>%
+      pull(np)
+  )
+)
+text(
+  fit$centers["HF", "x"] - 0.03, fit$centers["HF", "y"] + .05,
+  paste0(
+    "HF\n",
+    popvenn %>%
+      count(sos_com_hf, wt = n) %>%
+      mutate(
+        percent = dF(n / sum(n) * 100, 0),
+        np = paste0(n, " (", percent, "%)")
+      ) %>%
+      filter(sos_com_hf == "Yes") %>%
+      pull(np)
+  )
+)
+
+text(
+  fit$centers["Diabetes", "x"] - 0.035, fit$centers["Diabetes", "y"] - .055,
+  paste0(
+    "Diabetes\n",
+    popvenn %>%
+      count(sos_com_diabetes, wt = n) %>%
+      mutate(
+        percent = dF(n / sum(n) * 100, 0),
+        np = paste0(n, " (", percent, "%)")
+      ) %>%
+      filter(sos_com_diabetes == "Yes") %>%
+      pull(np)
+  )
+)
+
+text(
+  fit$centers["Kidney", "x"], fit$centers["Kidney", "y"],
+  paste0(
+    "Kidney disease\n ",
+    popvenn %>%
+      count(sos_com_renal, wt = n) %>%
+      mutate(
+        percent = dF(n / sum(n) * 100, 0),
+        np = paste0(n, " (", percent, "%)")
+      ) %>%
+      filter(sos_com_renal == "Yes") %>%
+      pull(np)
+  )
+)
+
+text(
+  fit$centers["HT", "x"] + 0.05, fit$centers["HT", "y"],
+  paste0(
+    "Hypertension\n",
+    popvenn %>%
+      count(sos_com_hypertension, wt = n) %>%
+      mutate(
+        percent = dF(n / sum(n) * 100, 0),
+        np = paste0(n, " (", percent, "%)")
+      ) %>%
+      filter(sos_com_hypertension == "Yes") %>%
+      pull(np)
+  )
+)
+```

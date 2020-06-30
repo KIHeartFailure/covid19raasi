@@ -1,70 +1,80 @@
 ```{r ortab, cache=cacheon}
 
-ormy <- function(event, modvarsmy, data, modname, weightsmy) {
-  out <- data.frame(matrix(NA, ncol = 6, nrow = 5))
-
-  out[1, 1] <- modname
-  out[1, 2] <- modvarsmy[1]
-  colnames(out) <- c("Outcome/Subgroup", "Variable", "Model", "No", "Yes", "p-value")
-
-  #tmpdata <- na.omit(data %>%
-  #  select(!!sym(event), !!!syms(modvarsmy)))
-
-  ns <- data %>%
-    group_by(!!sym(modvarsmy[1])) %>%
-    count(!!sym(event)) %>%
-    mutate(
-      p = n / sum(n),
-      np = paste0(n, " (", dF(p * 100, dig = 2), "%)")
-    ) %>%
-    ungroup() %>%
-    filter(!!sym(event) == "Yes")
-
-  out[1, 3] <- "n (%) event"
-  out[1, 4:5] <- ns %>% pull(np)
-
-
-  # Crude
-  mod <- glm(formula(paste(event, " == 'Yes' ~ ", modvarsmy[1])),
-    data = data,
-    family = binomial(link = "logit")
+ormy <- function(event, modvarsmy, data, modname, weightsmy = c("weight_rasi", "weight_mra")) {
+  out <- list(
+    data.frame(matrix(NA, ncol = 9, nrow = 4, 1)),
+    data.frame(matrix(NA, ncol = 9, nrow = 4, 1))
   )
-  smod <- summary(mod)
+  names(out) <- modvarsmy[1:2]
 
-  out[2, 3] <- "Crude OR (95% CI)"
-  out[2, 4:6] <- cbind(
-    "ref",
-    paste0(
-      dF(exp(smod$coefficients[2, 1]), dig = 2),
-      " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
-      "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), "), "
-    ),
-    dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
-  )
+  for (i in 1:2) {
+    out[[i]][1, 1] <- modname
 
-  # Adj no treatments
-  mod <- glm(formula(paste(event, " == 'Yes' ~ ", paste0(
-    modvarsmy[1], " + ",
-    paste(modvarsmy[!modvarsmy %in% modvarstreats],
-      collapse = " + "
+    colnames(out[[i]]) <- c(
+      "Outcome/Subgroup", "Model", "No", "Yes",
+      "p-value", "logor", "loglci", "loguci", "modname"
     )
-  ))),
-  data = data,
-  family = binomial(link = "logit")
-  )
 
-  smod <- summary(mod)
+    ns <- data %>%
+      group_by(!!sym(modvarsmy[i])) %>%
+      count(!!sym(event)) %>%
+      mutate(
+        p = n / sum(n),
+        np = paste0(n, " (", dF(p * 100, dig = 2), "%)")
+      ) %>%
+      ungroup() %>%
+      filter(!!sym(event) == "Yes")
 
-  out[3, 3] <- "Adj no treatments OR (95% CI)"
-  out[3, 4:6] <- cbind(
-    "ref",
-    paste0(
-      dF(exp(smod$coefficients[2, 1]), dig = 2),
-      " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
-      "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), "), "
-    ),
-    dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
-  )
+    out[[i]][1, 2] <- "n (%) event"
+    out[[i]][1, 3:4] <- ns %>% pull(np)
+
+
+    # Crude
+    mod <- glm(formula(paste(event, " == 'Yes' ~ ", modvarsmy[i])),
+      data = data,
+      family = binomial(link = "logit")
+    )
+    smod <- summary(mod)
+
+    out[[i]][2, 2] <- "Crude OR (95% CI)"
+    out[[i]][2, 3:5] <- cbind(
+      "ref",
+      paste0(
+        dF(exp(smod$coefficients[2, 1]), dig = 2),
+        " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
+        "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), ")"
+      ),
+      dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
+    )
+
+
+    # Adj pS IPW
+
+    mod <- glm(formula(paste(event, " == 'Yes' ~ ", paste(modvarsmy, collapse = " + "))),
+      data = data,
+      family = binomial(link = "logit"),
+      weights = data %>% pull(!!sym(weightsmy[i]))
+    )
+
+    smod <- jtools::get_robust_se(mod, type = "HC0")
+
+    out[[i]][4, 2] <- "Adj IPW OR (95% CI)"
+    out[[i]][4, 3:5] <- cbind(
+      "ref",
+      paste0(
+        dF(exp(smod$coefs[i + 1, 1]), dig = 2),
+        " (", dF(exp(smod$coefs[i + 1, 1] - global_z05 * smod$coefs[i + 1, 2]), dig = 2),
+        "-", dF(exp(smod$coefs[i + 1, 1] + global_z05 * smod$coefs[i + 1, 2]), dig = 2), ")"
+      ),
+      dF(smod$coefs[i + 1, 4], dig = 3, p = TRUE)
+    )
+
+    # for forestplot
+    out[[i]][4, 6] <- smod$coefs[i + 1, 1]
+    out[[i]][4, 7] <- smod$coefs[i + 1, 1] - global_z05 * smod$coefs[i + 1, 2]
+    out[[i]][4, 8] <- smod$coefs[i + 1, 1] + global_z05 * smod$coefs[i + 1, 2]
+    out[[i]][4, 9] <- modname
+  }
 
   # Adj
   mod <- glm(formula(paste(event, " == 'Yes' ~ ", paste(modvarsmy, collapse = " + "))),
@@ -74,190 +84,230 @@ ormy <- function(event, modvarsmy, data, modname, weightsmy) {
 
   smod <- summary(mod)
 
-  out[4, 3] <- "Adj OR (95% CI)"
-  out[4, 4:6] <- cbind(
-    "ref",
-    paste0(
-      dF(exp(smod$coefficients[2, 1]), dig = 2),
-      " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
-      "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), "), "
-    ),
-    dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
-  )
 
-  # Adj pS IPW
-  
-  mod <- glm(formula(paste(event, " == 'Yes' ~ ", paste(modvarsmy, collapse = " + "))),
-    data = data,
-    family = binomial(link = "logit"),
-    weights = data %>% pull(!!sym(weightsmy))
-  )
-  
-  smod <- summary(mod)
-
-  out[5, 3] <- "Adj ps IPW OR (95% CI)"
-  out[5, 4:6] <-   cbind(
-    "ref",
-    paste0(
-      dF(exp(smod$coefficients[2, 1]), dig = 2),
-      " (", dF(exp(smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]), dig = 2),
-      "-", dF(exp(smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]), dig = 2), "), "
-    ),
-    dF(smod$coefficients[2, 4], dig = 3, p = TRUE)
-  )
-
-  
+  for (i in 1:2) {
+    out[[i]][3, 2] <- "Adj OR (95% CI)"
+    out[[i]][3, 3:5] <- cbind(
+      "ref",
+      paste0(
+        dF(exp(smod$coefficients[i + 1, 1]), dig = 2),
+        " (", dF(exp(smod$coefficients[i + 1, 1] - global_z05 * smod$coefficients[i + 1, 2]), dig = 2),
+        "-", dF(exp(smod$coefficients[i + 1, 1] + global_z05 * smod$coefficients[i + 1, 2]), dig = 2), ")"
+      ),
+      dF(smod$coefficients[i + 1, 4], dig = 3, p = TRUE)
+    )
+  }
   return(out)
 }
 
-## RAASi
 out11 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns),
-  weightsmy = "ps_raasiarni",
+  event = "sos_covidconfirmed",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
   data = pop,
-  modname = "Confirmed covid"
-)
-out12 <- ormy(
-  event = "sos_out_covidall",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns),
-  weightsmy = "ps_raasiarni",
-  data = pop,
-  modname = "Secondary analysis - Covid all"
+  modname = "All"
 )
 out13 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
-  weightsmy = "ps_raasiarni",
+  event = "sos_covidconfirmed",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
   data = pop %>% filter(sos_com_hf == "Yes"),
-  modname = "Sens analysis - Subgroup HF"
+  modname = "HF"
 )
 out14 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
-  weightsmy = "ps_raasiarni",
+  event = "sos_covidconfirmed",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
   data = pop %>% filter(sos_com_hypertension == "Yes"),
-  modname = "Sens analysis - Subgroup hypertension"
+  modname = "Hypertension"
 )
 out15 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
-  weightsmy = "ps_raasiarni",
+  event = "sos_covidconfirmed",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
   data = pop %>% filter(sos_com_renal == "Yes"),
-  modname = "Sens analysis - Subgroup kidney disease"
+  modname = "Kidney disease"
 )
 out16 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
-  weightsmy = "ps_raasiarni",
+  event = "sos_covidconfirmed",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
   data = pop %>% filter(sos_com_ihd == "Yes"),
-  modname = "Sens analysis - Subgroup IHD"
+  modname = "IHD"
 )
 out17 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
-  weightsmy = "ps_raasiarni",
+  event = "sos_covidconfirmed",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
   data = pop %>% filter(sos_com_diabetes == "Yes"),
-  modname = "Sens analysis - Subgroup Diabetes"
+  modname = "Diabetes"
 )
 out18 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
-  weightsmy = "ps_raasiarni",
+  event = "sos_covidconfirmed",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
   data = pop %>% filter(scb_region_stockholm == "Yes"),
-  modname = "Sens analysis - Subgroup Region Stockholm"
+  modname = "Stockholm"
 )
 out19 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_arni", "sos_ddr_raasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
-  weightsmy = "ps_arni",
-  data = pop %>% filter(sos_com_hf == "Yes"),
-  modname = "Sens analysis - ARNI in HF"
+  event = "sos_out_hospbleed",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
+  data = pop,
+  modname = "Negative control - Bleed"
 )
 out110 <- ormy(
-  event = "sos_out_hospbleed",
-  modvarsmy = c("sos_ddr_raasiarni", "sos_ddr_mra", modvarsns),
-  weightsmy = "ps_raasiarni",
+  event = "sos_out_hospcancer",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
   data = pop,
-  modname = "Negative control - Bleed"
+  modname = "Negative control - Cancer"
 )
-
-## MRA
-out21 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns),
-  weightsmy = "ps_mra",
+out111 <- ormy(
+  event = "sos_out_hospliver",
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
   data = pop,
-  modname = "Confirmed covid"
-)
-out22 <- ormy(
-  event = "sos_out_covidall",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns),
-  weightsmy = "ps_mra",
-  data = pop,
-  modname = "Secondary analysis - Covid all"
-)
-out23 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_hf"]),
-  weightsmy = "ps_mra",
-  data = pop %>% filter(sos_com_hf == "Yes"),
-  modname = "Sens analysis - Subgroup HF"
-)
-out24 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
-  weightsmy = "ps_mra",
-  data = pop %>% filter(sos_com_hypertension == "Yes"),
-  modname = "Sens analysis - Subgroup hypertension"
-)
-out25 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_renal"]),
-  weightsmy = "ps_mra",
-  data = pop %>% filter(sos_com_renal == "Yes"),
-  modname = "Sens analysis - Subgroup kidney disease"
-)
-out26 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_ihd"]),
-  weightsmy = "ps_mra",
-  data = pop %>% filter(sos_com_ihd == "Yes"),
-  modname = "Sens analysis - Subgroup IHD"
-)
-out27 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
-  weightsmy = "ps_mra",
-  data = pop %>% filter(sos_com_diabetes == "Yes"),
-  modname = "Sens analysis - Subgroup Diabetes"
-)
-out29 <- ormy(
-  event = "sos_out_hospcovidconfirmed",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
-  weightsmy = "ps_mra",
-  data = pop %>% filter(scb_region_stockholm == "Yes"),
-  modname = "Sens analysis - Subgroup Region Stockholm"
-)
-out210 <- ormy(
-  event = "sos_out_hospbleed",
-  modvarsmy = c("sos_ddr_mra", "sos_ddr_raasiarni", modvarsns),
-  weightsmy = "ps_mra",
-  data = pop,
-  modname = "Negative control - Bleed"
+  modname = "Negative control - Liver"
 )
 
-outall <- rbind(out11, out12, out13, out14, out15, out16, out17, out18, out19, out110,
-                out21, out22, out23, out24, out25, out26, out27, out29, out210
-                )
+outall <- cbind(
+  outrasi <- rbind(
+    out11[["sos_ddr_rasi"]], out13[["sos_ddr_rasi"]], out14[["sos_ddr_rasi"]],
+    out15[["sos_ddr_rasi"]], out16[["sos_ddr_rasi"]], out17[["sos_ddr_rasi"]],
+    out18[["sos_ddr_rasi"]], out19[["sos_ddr_rasi"]], out110[["sos_ddr_rasi"]],
+    out111[["sos_ddr_rasi"]]
+  ),
+  outmra <- rbind(
+    out11[["sos_ddr_mra"]], out13[["sos_ddr_mra"]], out14[["sos_ddr_mra"]],
+    out15[["sos_ddr_mra"]], out16[["sos_ddr_mra"]], out17[["sos_ddr_mra"]],
+    out18[["sos_ddr_mra"]], out19[["sos_ddr_mra"]], out110[["sos_ddr_mra"]],
+    out111[["sos_ddr_mra"]]
+  )
+)
 
-write.xlsx(outall, paste0("./output/tabs/outcovid_", Sys.Date(), ".xlsx"), rowNames = FALSE)
+outalltmp <- outall[, c(1:5, 12:14)]
+colnames(outalltmp) <- c("Outcome/Subgroup", "Model", rep(c("No", "Yes", "p-value"), 2))
 
+write.xlsx(outalltmp, paste0("./output/tabs/outcovid_", Sys.Date(), ".xlsx"), rowNames = FALSE)
 
-mykable(outall,
+myHeader <- c(" " = 1, " " = 1, "RASi" = 3, "MRA" = 3)
+names(myHeader) <- c(" ", " ", "RASi", "MRA")
+
+footnote(mykable(outalltmp,
   fontsize = 6,
-  caption = "Outcome Covid",
+  caption = "Outcome Covid-19",
   longtable = TRUE
-)  %>%
-  landscape() 
+) %>%
+  landscape() %>%
+  add_header_above(myHeader),
+general = c(
+  "Adj = adjusted for variables indicated in baseline table.",
+  "Adj IPW = adjusted for variables indicated in baseline table and using inverse probabilty weights for RASi and MRA respectively."
+)
+)
+```
+
+```{r orplotrasi, cache=cacheon, dependeson = "ortab", fig.cap="Forestplot Association RASi vs Covid-19"}
+cextext <- 0.8
+
+outforestor <- outrasi %>%
+  filter(Model == "Adj IPW OR (95% CI)" &
+    modname %in% c("All", "HF", "Hypertension", "Kidney disease", "IHD", "Diabetes", "Stockholm"))
+
+
+par(mar = c(4, 11, 1, 2) + 0.2)
+plot(rev(outforestor$logor), 1:nrow(outforestor),
+  xlab = "",
+  xlim = c(
+    log(.6),
+    log(1.2)
+  ),
+  ylim = c(1, nrow(outforestor) + 1),
+  axes = FALSE,
+  ylab = NA,
+  cex.lab = 1.1,
+  main = NA,
+  cex = 2,
+  type = "p",
+  pch = 22,
+  bg = global_kicols[1],
+  col = global_kicols[1]
+)
+
+
+for (i in 1:nrow(outforestor)) {
+  matplot(c(rev(outforestor$loglci)[i], rev(outforestor$loguci)[i]), c(i, i),
+    type = "l", add = TRUE, col = global_kicols[1], cex = 2
+  )
+}
+matplot(c(0, 0), c(-1, nrow(outforestor) + 0.5), type = "l", lty = 3, add = TRUE, col = "black")
+
+axis(1,
+  cex.axis = cextext, at = log(seq(0.6, 1.2, 0.1)),
+  labels = c(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2)
+)
+
+axis(2,
+  at = 1:nrow(outforestor), labels = rev(outforestor$modname),
+  cex.axis = cextext, tick = FALSE, las = 2, line = 10, hadj = 0
+)
+
+axis(2,
+  at = 1:(nrow(outforestor) + 1),
+  labels = c(rev(outforestor$Yes), "Odds Ratio (95% CI)"),
+  cex.axis = cextext, tick = FALSE, las = 2, line = 2, hadj = 0.5
+)
+
+axis(1,
+  at = 0.01, cex.axis = cextext,
+  labels = "RASi better         No RASi better", line = 1, tick = FALSE
+)
+```
+
+```{r orplotmra, cache=cacheon, dependeson = "ortab", fig.cap="Forestplot Association MRA vs Covid-19"}
+cextext <- 0.8
+
+outforestor <- outmra %>%
+  filter(Model == "Adj IPW OR (95% CI)" &
+    modname %in% c("All", "HF", "Hypertension", "Kidney disease", "IHD", "Diabetes", "Stockholm"))
+
+
+par(mar = c(4, 11, 1, 2) + 0.2)
+plot(rev(outforestor$logor), 1:nrow(outforestor),
+  xlab = "",
+  xlim = c(
+    log(.6),
+    log(1.2)
+  ),
+  ylim = c(1, nrow(outforestor) + 1),
+  axes = FALSE,
+  ylab = NA,
+  cex.lab = 1.1,
+  main = NA,
+  cex = 2,
+  type = "p",
+  pch = 22,
+  bg = global_kicols[1],
+  col = global_kicols[1]
+)
+
+
+for (i in 1:nrow(outforestor)) {
+  matplot(c(rev(outforestor$loglci)[i], rev(outforestor$loguci)[i]), c(i, i),
+    type = "l", add = TRUE, col = global_kicols[1], cex = 2
+  )
+}
+matplot(c(0, 0), c(-1, nrow(outforestor) + 0.5), type = "l", lty = 3, add = TRUE, col = "black")
+
+axis(1,
+  cex.axis = cextext, at = log(seq(0.6, 1.2, 0.1)),
+  labels = c(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2)
+)
+
+axis(2,
+  at = 1:nrow(outforestor), labels = rev(outforestor$modname),
+  cex.axis = cextext, tick = FALSE, las = 2, line = 10, hadj = 0
+)
+
+axis(2,
+  at = 1:(nrow(outforestor) + 1),
+  labels = c(rev(outforestor$Yes), "Odds Ratio (95% CI)"),
+  cex.axis = cextext, tick = FALSE, las = 2, line = 2, hadj = 0.5
+)
+
+axis(1,
+  at = 0.01, cex.axis = cextext,
+  labels = "MRA better         No MRA better", line = 1, tick = FALSE
+)
 ```
