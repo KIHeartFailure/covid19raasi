@@ -30,9 +30,10 @@ pop <- pop %>%
 
     sos_outtime_death = case_when(
       is.na(coviddtm) & sos_deathcovidconfulorsak == "Yes" ~ 0,
-      TRUE ~ as.numeric(censdtm - coviddtm)
+      TRUE ~ as.numeric(censdtm - coviddtm) 
     ),
-    sos_outtime_death = if_else(sos_outtime_death < 0, 0, sos_outtime_death)
+    sos_outtime_death = if_else(sos_outtime_death < 0, 0, sos_outtime_death),
+    sos_outtime_death = sos_outtime_death + 1, # if found in CDR or die on same day as hosp will otherwise have 0 days fu 
   ) %>%
   select(
     LopNr,
