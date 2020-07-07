@@ -1,19 +1,18 @@
-```{r forestunmeasuredconfras, cache=cacheon, fig.cap="Unmeasured confounders RASi"}
+```{r forestunmeasuredconfrasdeath, cache=cacheon, fig.cap="Unmeasured confounders RASi outcome death"}
 
 outforest <- data.frame(matrix(NA, ncol = 5, nrow = 5))
-colnames(outforest) <- c("Model", "ORtext", "logOR", "loglci", "loguci")
+colnames(outforest) <- c("Model", "HRtext", "logHR", "loglci", "loguci")
 
 # Crude
-mod <- glm(sos_covidconfirmed == "Yes" ~ sos_ddr_rasi,
-  data = pop,
-  family = binomial(link = "logit")
+mod <- coxph(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_rasi,
+  data = pop %>% filter(sos_covidconfirmed == "Yes")
 )
 smod <- summary(mod)
 
 outforest[1, 1] <- "Crude"
-outforest[1, 3] <- smod$coefficients[2, 1]
-outforest[1, 4] <- smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]
-outforest[1, 5] <- smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]
+outforest[1, 3] <- log(smod$conf.int[1, 1])
+outforest[1, 4] <- log(smod$conf.int[1, 3])
+outforest[1, 5] <- log(smod$conf.int[1, 4])
 outforest[1, 2] <- paste0(
   dF(exp(outforest[1, 3]), dig = 2),
   " (", dF(exp(outforest[1, 4]), dig = 2),
@@ -21,25 +20,19 @@ outforest[1, 2] <- paste0(
 )
 
 # Adj pS IPW
-
-mod <- glm(formula(paste(
-  "sos_covidconfirmed == 'Yes' ~ ",
-  paste(c("sos_ddr_rasi", "sos_ddr_mra", modvarsns), collapse = " + ")
-)),
-data = pop,
-family = binomial(link = "logit"),
-weights = weight_rasi
+mod <- coxph(formula(paste0(
+  "Surv(sos_outtime_death, sos_death == 'Yes') ~ ",
+  paste(c("sos_ddr_rasi", "sos_ddr_mra", modvarsns), collapse = " + "))),
+weights = weight_rasi,
+data = pop %>% filter(sos_covidconfirmed == "Yes")
 )
 
 smod <- jtools::get_robust_se(mod, type = "HC0")
 
-# cores_2_use <- parallel::detectCores() - 1
-# se <- sqrt(diag(sandwich::vcovBS(mod, cores = cores_2_use, R = 100))) will still be running 2065...
-
 outforest[2, 1] <- "Adjusted IPW"
-outforest[2, 3] <- smod$coefs[2, 1]
-outforest[2, 4] <- smod$coefs[2, 1] - global_z05 * smod$coefs[2, 2]
-outforest[2, 5] <- smod$coefs[2, 1] + global_z05 * smod$coefs[2, 2]
+outforest[2, 3] <- smod$coefs[1, 1]
+outforest[2, 4] <- smod$coefs[1, 1] - global_z05 * smod$coefs[1, 2]
+outforest[2, 5] <- smod$coefs[1, 1] + global_z05 * smod$coefs[1, 2]
 outforest[2, 2] <- paste0(
   dF(exp(outforest[2, 3]), dig = 2),
   " (", dF(exp(outforest[2, 4]), dig = 2),
@@ -48,16 +41,16 @@ outforest[2, 2] <- paste0(
 
 # Adj with unmeasured confounder I-III
 
-orucrasi <- c(1.4, 2, 15)
+hruc <- c(1.4, 2, 10)
 p <- c(0.7, 0.35)
 
-unconf <- obsSensCCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
-  g0 = orucrasi,
+unconf <- obsSensSCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
+  g0 = hruc,
   p0 = p[1], p1 = p[2],
-  logOdds = TRUE
+  logHaz = TRUE
 )
 
-outforest[3:5, 1] <- paste0("Adjusted counfounder OR = ", orucrasi)
+outforest[3:5, 1] <- paste0("Adjusted counfounder HR = ", hruc)
 outforest[3:5, 3] <- unconf[[1]][1:3]
 outforest[3:5, 4] <- unconf[[2]][1:3]
 outforest[3:5, 5] <- unconf[[3]][1:3]
@@ -84,12 +77,11 @@ plot(0, 0,
   axes = FALSE,
   ylab = NA,
   main = NA,
-  panel.first = rect(c(log(0.7), log(1), log(1.5)), -1e6, c(log(1), log(1.5), log(1.8)), 1e6,
-    col = c("palegreen3", "darkgoldenrod1", "tomato3"), border = NA
-  )
+  panel.first = rect(c(log(0.7), log(1), log(1.5)), -1e6, c(log(1), log(1.5), log(1.8)), 1e6, 
+                     col = c("palegreen3", "darkgoldenrod1", "tomato3"), border = NA)
 )
 
-matplot(rev(outforest$logOR), 1:nrow(outforest),
+matplot(rev(outforest$logHR), 1:nrow(outforest),
   cex = 2,
   type = "p",
   pch = 22,
@@ -120,7 +112,7 @@ axis(2,
 
 axis(2,
   at = c(1:nrow(outforest), nrow(outforest) + 0.5),
-  labels = c(rev(outforest$ORtext), "Odds Ratio (95% CI)"),
+  labels = c(rev(outforest$HRtext), "Hazard Ratio (95% CI)"),
   cex.axis = cextext, tick = FALSE, las = 2, line = 2, hadj = 0.5
 )
 
@@ -131,22 +123,21 @@ axis(1,
 )
 ```
 
-```{r forestunmeasuredconfmra, cache=cacheon, fig.cap="Unmeasured confounders MRA"}
+```{r forestunmeasuredconfmradeath, cache=cacheon, fig.cap="Unmeasured confounders MRA outcome death"}
 
 outforest <- data.frame(matrix(NA, ncol = 5, nrow = 5))
-colnames(outforest) <- c("Model", "ORtext", "logOR", "loglci", "loguci")
+colnames(outforest) <- c("Model", "HRtext", "logHR", "loglci", "loguci")
 
 # Crude
-mod <- glm(sos_covidconfirmed == "Yes" ~ sos_ddr_mra,
-  data = pop,
-  family = binomial(link = "logit")
+mod <- coxph(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_mra,
+  data = pop %>% filter(sos_covidconfirmed == "Yes")
 )
 smod <- summary(mod)
 
 outforest[1, 1] <- "Crude"
-outforest[1, 3] <- smod$coefficients[2, 1]
-outforest[1, 4] <- smod$coefficients[2, 1] - global_z05 * smod$coefficients[2, 2]
-outforest[1, 5] <- smod$coefficients[2, 1] + global_z05 * smod$coefficients[2, 2]
+outforest[1, 3] <- log(smod$conf.int[1, 1])
+outforest[1, 4] <- log(smod$conf.int[1, 3])
+outforest[1, 5] <- log(smod$conf.int[1, 4])
 outforest[1, 2] <- paste0(
   dF(exp(outforest[1, 3]), dig = 2),
   " (", dF(exp(outforest[1, 4]), dig = 2),
@@ -154,25 +145,19 @@ outforest[1, 2] <- paste0(
 )
 
 # Adj pS IPW
-
-mod <- glm(formula(paste(
-  "sos_covidconfirmed == 'Yes' ~ ",
-  paste(c("sos_ddr_mra", "sos_ddr_rasi", modvarsns), collapse = " + ")
-)),
-data = pop,
-family = binomial(link = "logit"),
-weights = weight_mra
+mod <- coxph(formula(paste0(
+  "Surv(sos_outtime_death, sos_death == 'Yes') ~ ",
+  paste(c("sos_ddr_mra", "sos_ddr_rasi", modvarsns), collapse = " + "))),
+weights = weight_mra,
+data = pop %>% filter(sos_covidconfirmed == "Yes")
 )
 
 smod <- jtools::get_robust_se(mod, type = "HC0")
 
-# cores_2_use <- parallel::detectCores() - 1
-# se <- sqrt(diag(sandwich::vcovBS(mod, cores = cores_2_use, R = 100))) will still be running 2065...
-
 outforest[2, 1] <- "Adjusted IPW"
-outforest[2, 3] <- smod$coefs[2, 1]
-outforest[2, 4] <- smod$coefs[2, 1] - global_z05 * smod$coefs[2, 2]
-outforest[2, 5] <- smod$coefs[2, 1] + global_z05 * smod$coefs[2, 2]
+outforest[2, 3] <- smod$coefs[1, 1]
+outforest[2, 4] <- smod$coefs[1, 1] - global_z05 * smod$coefs[1, 2]
+outforest[2, 5] <- smod$coefs[1, 1] + global_z05 * smod$coefs[1, 2]
 outforest[2, 2] <- paste0(
   dF(exp(outforest[2, 3]), dig = 2),
   " (", dF(exp(outforest[2, 4]), dig = 2),
@@ -181,16 +166,16 @@ outforest[2, 2] <- paste0(
 
 # Adj with unmeasured confounder I-III
 
-oruc <- c(0.7, 1.8, 5)
+hruc <- c(0.7, 1.8, 5)
 p <- c(0.7, 0.35)
 
-unconf <- obsSensCCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
-  g0 = oruc,
+unconf <- obsSensSCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
+  g0 = hruc,
   p0 = p[1], p1 = p[2],
-  logOdds = TRUE
+  logHaz = TRUE
 )
 
-outforest[3:5, 1] <- paste0("Adjusted counfounder OR = ", oruc)
+outforest[3:5, 1] <- paste0("Adjusted counfounder HR = ", hruc)
 outforest[3:5, 3] <- unconf[[1]][1:3]
 outforest[3:5, 4] <- unconf[[2]][1:3]
 outforest[3:5, 5] <- unconf[[3]][1:3]
@@ -217,12 +202,11 @@ plot(0, 0,
   axes = FALSE,
   ylab = NA,
   main = NA,
-  panel.first = rect(c(log(0.7), log(1), log(1.5)), -1e6, c(log(1), log(1.5), log(1.8)), 1e6,
-    col = c("palegreen3", "darkgoldenrod1", "tomato3"), border = NA
-  )
+  panel.first = rect(c(log(0.7), log(1), log(1.5)), -1e6, c(log(1), log(1.5), log(1.8)), 1e6, 
+                     col = c("palegreen3", "darkgoldenrod1", "tomato3"), border = NA)
 )
 
-matplot(rev(outforest$logOR), 1:nrow(outforest),
+matplot(rev(outforest$logHR), 1:nrow(outforest),
   cex = 2,
   type = "p",
   pch = 22,
@@ -253,7 +237,7 @@ axis(2,
 
 axis(2,
   at = c(1:nrow(outforest), nrow(outforest) + 0.5),
-  labels = c(rev(outforest$ORtext), "Odds Ratio (95% CI)"),
+  labels = c(rev(outforest$HRtext), "Hazard Ratio (95% CI)"),
   cex.axis = cextext, tick = FALSE, las = 2, line = 2, hadj = 0.5
 )
 

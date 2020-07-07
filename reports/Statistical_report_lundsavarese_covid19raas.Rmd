@@ -195,12 +195,13 @@ Unmeasured confounders were assessed according to [@unmeasuredc].
 ```
 
 All unmeasured confounders are presumed to be present 
-in the RASi group with `r p[2]*100`% and in the no RASi group with `r p[1]*100`%. 
+in the RASi/MRA group with `r p[2] * 100`% and in the no RASi/MRA group 
+with `r p[1] * 100`%. 
 Interpretation: if there is an unmeasured confounder with an association 
-with covid as `r oruc[1]` (harmful), for example eGFR, and eGFR is present 
+with covid as `r orucrasi[1]` (harmful), for example eGFR, and eGFR is present 
 in the RASi group with `r p[2]*100`% and in the no RASi group with `r p[1]*100`%, the effect of RASi 
-would be non-significant. If you up the OR to `r oruc[2]` for the unmeasured confounder 
-you have a statistically significant harmful effect and if you up the OR to `r oruc[3]` 
+would be non-significant. If you up the OR to `r orucrasi[2]` for the unmeasured confounder 
+you have a statistically significant harmful effect and if you up the OR to `r orucrasi[3]` 
 very harmful effect (>1.5). 
 
 \clearpage
@@ -236,6 +237,20 @@ whole cohort. Possible outliers were visually inspected by plotting the dfbetas.
 
 ```
 
+### Unmeasured confounders
+
+Unmeasured confounders were similar assessed according to [@unmeasuredc]. 
+
+```{r, child = "../src/forest_unmeasuredconf_death.Rmd"}
+
+```
+
+All unmeasured confounders are presumed to be present 
+in the RASi/MRA group with `r p[2] * 100`% and in the no RASi/MRA group 
+with `r p[1] * 100`%. 
+
+\clearpage
+\newpage
 
 # Reproducibility
 
