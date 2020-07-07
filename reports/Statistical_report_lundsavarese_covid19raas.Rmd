@@ -97,6 +97,16 @@ from the NPR (in-patient or out-patient) from 1997 (1998 Skåne) and alive 2020-
 mykable(flow, caption = "Flowchart")
 ```
 
+The median age (IQR) is `r pop %>% summarise(med = median(scb_age),
+                                             q1 = quantile(scb_age, probs = 0.25),
+                                             q3 = quantile(scb_age, probs = 0.75)) %>%
+                                   mutate(out = paste0(med, " (", q1, "-", q3, ")")) %>%
+                                   pull(out)` and 
+`r pop %>% count(scb_sex) %>%
+  mutate(perc = dF(n / sum(n) * 100, 1)) %>%
+  filter(scb_sex == "Female") %>%
+  pull(perc)`% females.                                   
+
 \clearpage
 \newpage
 
