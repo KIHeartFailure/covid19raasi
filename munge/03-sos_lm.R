@@ -54,7 +54,10 @@ lmtreats("^B01AC", "antiplatlet")
 lmtreats("^B01A(?!C)", "anticoagulant")
 lmtreats("^A10A", "insulin")
 lmtreats("^A10B", "oralantidiabetic")
-
+lmtreats("^C10", "lipidlowering")
+lmtreats("^C01AA05", "digoxin")
+lmtreats("^C01DA", "nitrate")
+lmtreats("^C01B", "antiarrhythmic")
 
 colnames(metalm) <- c("Variable", "ATC")
 metalm <- metalm %>%
