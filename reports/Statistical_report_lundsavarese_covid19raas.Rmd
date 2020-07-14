@@ -265,7 +265,7 @@ sessionInfo()
 ## R code
 
 The R code for all data handling and statistical analyses are found: 
-https://github.com/KIHeartFailure/covid19rasi. On publication 
+https://github.com/KIHeartFailure/covid19raasi. On publication 
 the repository will be made public so as to 
 link to it from the resulting article for increased transparency and code sharing.
 No data or output is stored in the repository. 

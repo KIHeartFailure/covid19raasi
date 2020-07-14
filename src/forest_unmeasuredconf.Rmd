@@ -36,7 +36,7 @@ smod <- jtools::get_robust_se(mod, type = "HC0")
 # cores_2_use <- parallel::detectCores() - 1
 # se <- sqrt(diag(sandwich::vcovBS(mod, cores = cores_2_use, R = 100))) will still be running 2065...
 
-outforest[2, 1] <- "Adjusted IPW"
+outforest[2, 1] <- "Adjusted"
 outforest[2, 3] <- smod$coefs[2, 1]
 outforest[2, 4] <- smod$coefs[2, 1] - global_z05 * smod$coefs[2, 2]
 outforest[2, 5] <- smod$coefs[2, 1] + global_z05 * smod$coefs[2, 2]
@@ -57,7 +57,7 @@ unconf <- obsSensCCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
   logOdds = TRUE
 )
 
-outforest[3:5, 1] <- paste0("Adjusted counfounder OR = ", orucrasi)
+outforest[3:5, 1] <- paste0("Adjusted counfounder\nOR = ", orucrasi)
 outforest[3:5, 3] <- unconf[[1]][1:3]
 outforest[3:5, 4] <- unconf[[2]][1:3]
 outforest[3:5, 5] <- unconf[[3]][1:3]
@@ -68,7 +68,7 @@ outforest[3:5, 2] <- paste0(
   "-", dF(exp(outforest[3:5, 5]), dig = 2), ")"
 )
 
-cextext <- 0.8
+cextext <- 1
 
 par(mar = c(4, 16, 1, 2) + 0.2)
 
@@ -121,7 +121,7 @@ axis(2,
 axis(2,
   at = c(1:nrow(outforest), nrow(outforest) + 0.5),
   labels = c(rev(outforest$ORtext), "Odds Ratio (95% CI)"),
-  cex.axis = cextext, tick = FALSE, las = 2, line = 2, hadj = 0.5
+  cex.axis = cextext, tick = FALSE, las = 2, line = 3, hadj = 0.5
 )
 
 
@@ -169,7 +169,7 @@ smod <- jtools::get_robust_se(mod, type = "HC0")
 # cores_2_use <- parallel::detectCores() - 1
 # se <- sqrt(diag(sandwich::vcovBS(mod, cores = cores_2_use, R = 100))) will still be running 2065...
 
-outforest[2, 1] <- "Adjusted IPW"
+outforest[2, 1] <- "Adjusted"
 outforest[2, 3] <- smod$coefs[2, 1]
 outforest[2, 4] <- smod$coefs[2, 1] - global_z05 * smod$coefs[2, 2]
 outforest[2, 5] <- smod$coefs[2, 1] + global_z05 * smod$coefs[2, 2]
@@ -190,7 +190,7 @@ unconf <- obsSensCCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
   logOdds = TRUE
 )
 
-outforest[3:5, 1] <- paste0("Adjusted counfounder OR = ", oruc)
+outforest[3:5, 1] <- paste0("Adjusted counfounder\nOR = ", oruc)
 outforest[3:5, 3] <- unconf[[1]][1:3]
 outforest[3:5, 4] <- unconf[[2]][1:3]
 outforest[3:5, 5] <- unconf[[3]][1:3]
@@ -201,7 +201,7 @@ outforest[3:5, 2] <- paste0(
   "-", dF(exp(outforest[3:5, 5]), dig = 2), ")"
 )
 
-cextext <- 0.8
+cextext <- 1
 
 par(mar = c(4, 16, 1, 2) + 0.2)
 
@@ -254,7 +254,7 @@ axis(2,
 axis(2,
   at = c(1:nrow(outforest), nrow(outforest) + 0.5),
   labels = c(rev(outforest$ORtext), "Odds Ratio (95% CI)"),
-  cex.axis = cextext, tick = FALSE, las = 2, line = 2, hadj = 0.5
+  cex.axis = cextext, tick = FALSE, las = 2, line = 3, hadj = 0.5
 )
 
 
