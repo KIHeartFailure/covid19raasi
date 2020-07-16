@@ -32,5 +32,6 @@ pop <- left_join(pop,
     sos_death = replace_na(sos_death, "No"),
     sos_deathcovidconfulorsak = replace_na(sos_deathcovidconfulorsak, "No"),
     sos_death_hasulorsak = replace_na(sos_death_hasulorsak, "No"),
-    censdtm = pmin(global_enddtm, sos_deathdtm, na.rm = TRUE)
+    censdtm = pmin(global_enddtm, sos_deathdtm, na.rm = TRUE),
+    censdtm_nc = global_enddtm - 365
   )

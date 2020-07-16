@@ -53,7 +53,8 @@ cacheon <- TRUE
 
 Län (Stockholm), civil status and family type are from RTB as of 2019-12-31. 
 Age, sex, country of birth and number of children is also from 2019-12-31.
-Disposable income and education are from LISA 2018.
+Disposable income and education are from LISA 2018. Age is from 2018 in the 
+negative control analyses (see below). 
 
 ### Socialstyrelsen
 
@@ -86,6 +87,9 @@ Index date is defined as `r global_indexdtm` (first covid-19 case in Sweden end 
 End of follow-up is defined as `r global_enddtm`, 
 decision based on visual inspection of patterns in NPR and Cause of Death Registry data.
 
+For the negative control analyses the indexdate is instead one year prior `r global_indexdtm - 365` and 
+end of follow-up is defined as `r global_enddtm - 365`.  
+
 ## Population 
 
 The population recieved from Socialstyrelsens consisted of persons with any of the following: 
@@ -96,6 +100,12 @@ from the NPR (in-patient or out-patient) from 1997 (1998 Skåne) and alive 2020-
 ```{r flow}
 mykable(flow, caption = "Flowchart")
 ```
+
+The population for the negative control analyses is a subset of the main population but 
+patients are requred to have a prior diagnosis of hypertension, diabetes, hf, kidney, 
+ihd, being >= 18 years and not have ARNI 
+(defined as one dispensed prescripton within 5 months) at `r global_indexdtm - 365` 
+and immigrated prior to 2014. 
 
 The median age (IQR) is `r pop %>% summarise(med = dF(median(scb_age), dig = 1),
                                              q1 = dF(quantile(scb_age, probs = 0.25), dig = 1),
@@ -119,6 +129,10 @@ mykable(metaout, caption = "Comorbidities and outcomes from NPR")
 ```{r atc}
 mykable(metalm, caption = "Treatments from DDR")
 ```
+
+Note that the comorbidities, treatments and outcomes used in the analyses 
+of covid and the negative control analyses are constructed based on different 
+time periods.
 
 ### Outcome Covid-19
 
@@ -152,6 +166,9 @@ cubic splines with 4 dfs. The propensity score was then incorporated in the mode
 using inverse probabilty of treatment weighting, truncated at 10, together 
 with the original variables. Sandwich variance estimators were applied 
 (prob more appropriate with bootstrap ci but will take too long). 
+
+This was done in a similar manner for the population used for the negative control 
+analyses including the variables used for this analyses. 
 
 ## Baseline characteristics
 

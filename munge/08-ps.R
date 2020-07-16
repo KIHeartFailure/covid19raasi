@@ -7,7 +7,7 @@ ps_rasi <- glm(formula(paste0(
   paste(modvarsns,
     collapse = " + "
   )
-)), 
+)),
 data = pop,
 family = binomial
 )
@@ -63,3 +63,54 @@ pop <- left_join(pop,
 #   geom_rug() +
 #   scale_x_log10(breaks = c(1, 5, 10, 20, 40)) +
 #   ggtitle("Distribution of inverse probability weights MRA")
+
+# For negative control ----------------------------------------------------
+
+ps_rasi_nc <- glm(formula(paste0(
+  "sos_ddr_nc_rasi == 'Yes' ~ sos_ddr_nc_mra + ",
+  paste(modvarsns_nc,
+    collapse = " + "
+  )
+)),
+data = pop %>% filter(pop_nc == "Yes"),
+family = binomial
+)
+
+ps_mra_nc <- glm(formula(paste0(
+  "sos_ddr_nc_mra == 'Yes' ~ sos_ddr_nc_rasi + ",
+  paste(modvarsns_nc,
+    collapse = " + "
+  )
+)),
+data = pop %>% filter(pop_nc == "Yes"),
+family = binomial
+)
+
+popps_nc <- bind_cols(na.omit(pop %>%
+  filter(pop_nc == "Yes") %>%
+  select(LopNr, !!!syms(modvars_nc))),
+ps_rasi_nc = ps_rasi_nc$fitted,
+ps_mra_nc = ps_mra_nc$fitted,
+)
+
+pop <- left_join(pop,
+  popps_nc %>%
+    select(
+      LopNr,
+      ps_rasi_nc,
+      ps_mra_nc
+    ),
+  by = "LopNr"
+) %>%
+  mutate(
+    weight_rasi_nc = ifelse(sos_ddr_nc_rasi == "Yes",
+      1 / ps_rasi_nc,
+      1 / (1 - ps_rasi_nc)
+    ),
+    weight_mra_nc = ifelse(sos_ddr_nc_mra == "Yes",
+      1 / ps_mra_nc,
+      1 / (1 - ps_mra_nc)
+    ),
+    weight_rasi_nc = pmin(10, weight_rasi_nc),
+    weight_mra_nc = pmin(10, weight_mra_nc),
+  )

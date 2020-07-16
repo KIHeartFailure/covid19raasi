@@ -144,35 +144,38 @@ out18 <- ormy(
 )
 out19 <- ormy(
   event = "sos_out_hospbleed",
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
-  data = pop,
-  modname = "Negative control - Bleed"
+  modvarsmy = c("sos_ddr_nc_rasi", "sos_ddr_nc_mra", modvarsns_nc),
+  data = pop %>% filter(pop_nc == "Yes"),
+  modname = "Negative control - Bleed",
+  weightsmy = c("weight_rasi_nc", "weight_mra_nc")
 )
 out110 <- ormy(
   event = "sos_out_hospcancer",
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
-  data = pop,
-  modname = "Negative control - Cancer"
+  modvarsmy = c("sos_ddr_nc_rasi", "sos_ddr_nc_mra", modvarsns_nc),
+  data = pop %>% filter(pop_nc == "Yes"),
+  modname = "Negative control - Cancer",
+  weightsmy = c("weight_rasi_nc", "weight_mra_nc")
 )
 out111 <- ormy(
   event = "sos_out_hospliver",
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
-  data = pop,
-  modname = "Negative control - Liver"
+  modvarsmy = c("sos_ddr_nc_rasi", "sos_ddr_nc_mra", modvarsns_nc),
+  data = pop %>% filter(pop_nc == "Yes"),
+  modname = "Negative control - Liver",
+  weightsmy = c("weight_rasi_nc", "weight_mra_nc")
 )
 
 outall <- cbind(
   outrasi <- rbind(
     out11[["sos_ddr_rasi"]], out13[["sos_ddr_rasi"]], out14[["sos_ddr_rasi"]],
     out15[["sos_ddr_rasi"]], out16[["sos_ddr_rasi"]], out17[["sos_ddr_rasi"]],
-    out18[["sos_ddr_rasi"]], out19[["sos_ddr_rasi"]], out110[["sos_ddr_rasi"]],
-    out111[["sos_ddr_rasi"]]
+    out18[["sos_ddr_rasi"]],
+    out19[["sos_ddr_nc_rasi"]], out110[["sos_ddr_nc_rasi"]], out111[["sos_ddr_nc_rasi"]]
   ),
   outmra <- rbind(
     out11[["sos_ddr_mra"]], out13[["sos_ddr_mra"]], out14[["sos_ddr_mra"]],
     out15[["sos_ddr_mra"]], out16[["sos_ddr_mra"]], out17[["sos_ddr_mra"]],
-    out18[["sos_ddr_mra"]], out19[["sos_ddr_mra"]], out110[["sos_ddr_mra"]],
-    out111[["sos_ddr_mra"]]
+    out18[["sos_ddr_mra"]],
+    out19[["sos_ddr_nc_mra"]], out110[["sos_ddr_nc_mra"]], out111[["sos_ddr_nc_mra"]]
   )
 )
 
@@ -199,11 +202,20 @@ general = c(
 ```
 
 ```{r orplotrasi, cache=cacheon, dependeson = "ortab", fig.cap="Forestplot Association RASi vs Covid-19"}
-cextext <- 0.8
+cextext <- 1
 
 outforestor <- outrasi %>%
   filter(Model == "Adj IPW OR (95% CI)" &
-    modname %in% c("All", "HF", "Hypertension", "Kidney disease", "IHD", "Diabetes", "Stockholm"))
+    modname %in% c("All", "HF", "Hypertension", "Kidney disease", "IHD", "Diabetes", "Stockholm")) %>%
+  mutate(modnameforforest = case_when(
+    modname == "All" ~ "All patients",
+    modname == "HF" ~ "Patients with\nHF",
+    modname == "Hypertension" ~ "Patients with\nhypertension",
+    modname == "Kidney disease" ~ "Patients with\nkidney disease",
+    modname == "IHD" ~ "Patients with\nIHD",
+    modname == "Diabetes" ~ "Patients with\ndiabetes",
+    modname == "Stockholm" ~ "Patients in\nStockholm Region"
+  ))
 
 
 par(mar = c(4, 11, 1, 2) + 0.2)
@@ -239,7 +251,7 @@ axis(1,
 )
 
 axis(2,
-  at = 1:nrow(outforestor), labels = rev(outforestor$modname),
+  at = 1:nrow(outforestor), labels = rev(outforestor$modnameforforest),
   cex.axis = cextext, tick = FALSE, las = 2, line = 10, hadj = 0
 )
 
@@ -256,11 +268,20 @@ axis(1,
 ```
 
 ```{r orplotmra, cache=cacheon, dependeson = "ortab", fig.cap="Forestplot Association MRA vs Covid-19"}
-cextext <- 0.8
+cextext <- 1
 
 outforestor <- outmra %>%
   filter(Model == "Adj IPW OR (95% CI)" &
-    modname %in% c("All", "HF", "Hypertension", "Kidney disease", "IHD", "Diabetes", "Stockholm"))
+    modname %in% c("All", "HF", "Hypertension", "Kidney disease", "IHD", "Diabetes", "Stockholm")) %>%
+  mutate(modnameforforest = case_when(
+    modname == "All" ~ "All patients",
+    modname == "HF" ~ "Patients with\nHF",
+    modname == "Hypertension" ~ "Patients with\nhypertension",
+    modname == "Kidney disease" ~ "Patients with\nkidney disease",
+    modname == "IHD" ~ "Patients with\nIHD",
+    modname == "Diabetes" ~ "Patients with\ndiabetes",
+    modname == "Stockholm" ~ "Patients in\nStockholm Region"
+  ))
 
 
 par(mar = c(4, 11, 1, 2) + 0.2)
@@ -296,7 +317,7 @@ axis(1,
 )
 
 axis(2,
-  at = 1:nrow(outforestor), labels = rev(outforestor$modname),
+  at = 1:nrow(outforestor), labels = rev(outforestor$modnameforforest),
   cex.axis = cextext, tick = FALSE, las = 2, line = 10, hadj = 0
 )
 

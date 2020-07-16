@@ -46,7 +46,8 @@ fodelseuppg <- fodelseuppg %>%
       Kon == 2 ~ "Female"
     ),
 
-    scb_age = 2019 - as.numeric(FoddAr)
+    scb_age = 2019 - as.numeric(FoddAr),
+    scb_nc_age = 2018 - as.numeric(FoddAr)
   ) %>%
   select(LopNr, starts_with("scb_"))
 
@@ -110,8 +111,19 @@ immigration <- migration %>%
   slice(n()) %>%
   ungroup() %>%
   filter(Posttyp == "Inv" &
-           migdat >= ymd("20150101")) %>%
+    migdat >= ymd("20150101")) %>%
   mutate(scb_immigratedpost2015 = 1) %>%
+  select(LopNr, starts_with("scb_"))
+
+immigration_nc <- migration %>%
+  mutate(migdat = ymd(Datum)) %>%
+  group_by(LopNr) %>%
+  arrange(Datum) %>%
+  slice(n()) %>%
+  ungroup() %>%
+  filter(Posttyp == "Inv" &
+    migdat >= ymd("20140101")) %>%
+  mutate(scb_immigratedpost2014 = 1) %>%
   select(LopNr, starts_with("scb_"))
 
 # All ---------------------------------------------------------------------
@@ -122,8 +134,11 @@ pop <- Reduce(
       by = "LopNr"
     )
   },
-  list(atersenpnr, emigration, immigration, fodelseuppg, rtb, lisa, antalbarn)
+  list(atersenpnr, emigration, immigration, immigration_nc, fodelseuppg, rtb, lisa, antalbarn)
 )
 
 pop <- pop %>%
-  mutate(indexdtm = global_indexdtm)
+  mutate(
+    indexdtm = global_indexdtm,
+    indexdtm_nc = global_indexdtm - 365
+  )

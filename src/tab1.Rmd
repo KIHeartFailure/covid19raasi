@@ -1,13 +1,14 @@
 ```{r tab1, cache=cacheon}
 
-tab1func <- function(data, title) {
+tab1func <- function(data, stratavar = c("sos_ddr_rasi", "sos_ddr_mra"),
+                     varsfortab = tabvars, title) {
   tab1_tmp <- CreateTableOne(
-    vars = tabvars,
-    strata = "sos_ddr_rasi",
+    vars = varsfortab,
+    strata = stratavar[1],
     data = data
   )
   tab1 <- print(tab1_tmp,
-    varLabels = TRUE, missing = TRUE, printToggle = FALSE, nonnormal = tabvars,
+    varLabels = TRUE, missing = TRUE, printToggle = FALSE, nonnormal = varsfortab,
     test = TRUE,
     catDigits = 1, contDigits = 1,
     explain = FALSE,
@@ -15,12 +16,12 @@ tab1func <- function(data, title) {
   )
 
   tab1m_tmp <- CreateTableOne(
-    vars = tabvars,
-    strata = "sos_ddr_mra",
+    vars = varsfortab,
+    strata = stratavar[2],
     data = data
   )
   tab1m <- print(tab1m_tmp,
-    varLabels = TRUE, missing = TRUE, printToggle = FALSE, nonnormal = tabvars,
+    varLabels = TRUE, missing = TRUE, printToggle = FALSE, nonnormal = varsfortab,
     test = TRUE,
     catDigits = 1, contDigits = 1,
     explain = FALSE,
@@ -45,8 +46,13 @@ tab1func <- function(data, title) {
 
   ## add fotnote stating which variables are used in adj models
 
-  tab1out$...1 <- ifelse(stri_extract_first_words(tab1out$tmp_varsforfoot) %in% c(modvars, "sos_ddr_rasi", "sos_ddr_mra"),
-    paste0(tab1out$...1, footnote_marker_symbol(1)), tab1out$...1
+  tab1out$...1 <- ifelse(stri_extract_first_words(tab1out$tmp_varsforfoot) %in%
+    c(
+      modvars, modvars_nc,
+      "sos_ddr_rasi", "sos_ddr_mra",
+      "sos_ddr_nc_rasi", "sos_ddr_nc_mra"
+    ),
+  paste0(tab1out$...1, footnote_marker_symbol(1)), tab1out$...1
   )
 
   ## add fotnote for disp income
@@ -105,5 +111,15 @@ tab1func(
 tab1func(
   data = pop %>% filter(sos_covidconfirmed == "Yes"),
   title = "Covid-19"
+)
+```
+
+```{r tab1negcontrol, cache=cacheon, dependeson = "tab1"}
+
+tab1func(
+  data = pop %>% filter(pop_nc == "Yes"),
+  title = "Negative control",
+  stratavar = c("sos_ddr_nc_rasi", "sos_ddr_nc_mra"),
+                     varsfortab = tabvars_nc
 )
 ```

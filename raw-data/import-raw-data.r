@@ -1,5 +1,5 @@
 
-ProjectTemplate::reload.project()
+ProjectTemplate::reload.project(cache_loading = FALSE)
 
 # Import data from SCB ----------------------------------------------------
 
@@ -36,7 +36,10 @@ sospath <- "./raw-data/SOS/"
 
 ## LM ---------------------------------------------------------------------
 
-lm <- readdata_sas(path = sospath, filename = "ut_lmed_19_20_18194_2020/lmed_19_20_18194_2020", clean = FALSE)
+lm1920 <- readdata_sas(path = sospath, filename = "ut_lmed_19_20_18194_2020/lmed_19_20_18194_2020", clean = FALSE)
+lm1718 <- readdata_sas(path = sospath, filename = "ut_lmed_17_18_18194_2020/lmed_17_18_18194_2020", clean = FALSE)
+
+lm <- rbind(lm1920, lm1718)
 
 ### Store as RData in /data folder ----------------------------------------
 
