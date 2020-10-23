@@ -1,107 +1,100 @@
-```{r kmdeathacrasi, fig.cap="1-KM Death All-cause RASi"}
-fit <- survfit(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_rasi,
-  data = pop %>% filter(sos_covidconfirmed == "Yes")
-)
+```{r kmdeathacfunc, cache=cacheon}
+kmfunc <- function(xvar, filt, xvarname, yjust = c(0, 0)) {
+  fit <- survfit(formula(paste("Surv(sos_outtime_death, sos_death == 'Yes') ~ ", xvar)),
+    data = pop %>% filter(!!filt)
+  )
 
-# logrank
-sd <- survdiff(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_rasi,
-  data = pop %>% filter(sos_covidconfirmed == "Yes")
-)
-p <- dF(pchisq(sd$chisq, length(sd$n) - 1, lower.tail = FALSE), dig = 3, p = TRUE)
+  # logrank
+  sd <- survdiff(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_rasi,
+    data = pop %>% filter(!!filt)
+  )
+  p <- dF(pchisq(sd$chisq, length(sd$n) - 1, lower.tail = FALSE), dig = 3, p = TRUE)
 
-# c(bottom, left, top, right)
-par(mar = c(6, 6, 1, 1) + 0.1)
-# par(mar=c(4, 4, 1, 1) + 0.1)
-plot(fit,
-  fun = "event",
-  ylab = "Death (%)",
-  xscale = 1,
-  yscale = 100,
-  col = global_kicols,
-  mark.time = FALSE,
-  bty = "n",
-  # xmax = 365.25,
-  xlim = c(-0.4, 80),
-  ylim = c(0, 1),
-  xlab = "Days",
-  axes = F,
-  lwd = 3,
-  lty = c(1, 2),
-  xaxs = "i", yaxs = "i"
-)
+  # c(bottom, left, top, right)
+  par(mar = c(6, 6, 1, 1) + 0.1)
+  # par(mar=c(4, 4, 1, 1) + 0.1)
+  plot(fit,
+    fun = "event",
+    ylab = "Death (%)",
+    xscale = 1,
+    yscale = 100,
+    col = global_kicols,
+    mark.time = FALSE,
+    bty = "n",
+    # xmax = 365.25,
+    xlim = c(-0.4, 80),
+    ylim = c(0, 1),
+    xlab = "Days",
+    axes = F,
+    lwd = 3,
+    lty = c(1, 2),
+    xaxs = "i", yaxs = "i"
+  )
 
-matlines(c(0, 0), c(0, fit$cumhaz[1]), col = global_kicols[1], lty = 1, lwd = 3)
-matlines(c(0, 0), c(0, fit$cumhaz[fit$strata[1] + 1]), col = global_kicols[2], lty = 2, lwd = 3)
+  matlines(c(0, 0), c(0, fit$cumhaz[1]), col = global_kicols[1], lty = 1, lwd = 3)
+  matlines(c(0, 0), c(0, fit$cumhaz[fit$strata[1] + 1]), col = global_kicols[2], lty = 2, lwd = 3)
 
-axis(2, seq(0, 1, 0.1), seq(0, 1, 0.1) * 100, las = 2)
-axis(1, seq(0, 80, 20), seq(0, 80, 20))
+  axis(2, seq(0, 1, 0.1), seq(0, 1, 0.1) * 100, las = 2)
+  axis(1, seq(0, 80, 20), seq(0, 80, 20))
 
-m11 <- 1 - summary(fit, 70)$surv
-text(60, m11 + c(+.05, -.055), c("No RASi", "RASi"), pos = 4, cex = 1.2)
+  m11 <- 1 - summary(fit, 50)$surv
+  text(50, m11 + yjust, c(paste0("No ", xvarname), xvarname), pos = 4, cex = 1.2)
 
-text(2, 0.05, paste0("Log-rank p = ", p), pos = 4)
+  text(2, 0.05, paste0("Log-rank p = ", p), pos = 4)
 
-mtext("No. at risk", side = 1, line = 3, at = -12, adj = 0, cex = 1)
+  mtext("No. at risk", side = 1, line = 3, at = -12, adj = 0, cex = 1)
 
-mtext("No", side = 1, line = 4, at = -10, adj = 0, cex = 1)
-mtext("Yes", side = 1, line = 5, at = -10, adj = 0, cex = 1)
+  mtext("No", side = 1, line = 4, at = -10, adj = 0, cex = 1)
+  mtext("Yes", side = 1, line = 5, at = -10, adj = 0, cex = 1)
 
-nrisk <- summary(fit, seq(0, 80, 20))$n.risk
+  nrisk <- summary(fit, seq(0, 80, 20))$n.risk
 
-axis(1, at = seq(0, 80, 20), labels = nrisk[1:5], line = 3, tick = FALSE, cex.axis = 1)
-axis(1, at = seq(0, 80, 20), labels = nrisk[6:10], line = 4, tick = FALSE, cex.axis = 1)
+  axis(1, at = seq(0, 80, 20), labels = nrisk[1:5], line = 3, tick = FALSE, cex.axis = 1)
+  axis(1, at = seq(0, 80, 20), labels = nrisk[6:10], line = 4, tick = FALSE, cex.axis = 1)
+}
 ```
 
-```{r kmdeathacmra, fig.cap="1-KM Death All-cause MRA"}
-fit <- survfit(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_mra,
-  data = pop %>% filter(sos_covidconfirmed == "Yes")
+```{r kmdeathacrasi, cache=cacheon, dependson="kmdeathacfunc", fig.cap="1-KM Death All-cause ACEi/ARB"}
+kmfunc(
+  xvar = "sos_ddr_rasi",
+  filt = quote(sos_covidconfirmed == "Yes"),
+  xvarname = "ACEi/ARB",
+  yjust = c(+.05, -.055)
 )
+```
 
-# logrank
-sd <- survdiff(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_mra,
-  data = pop %>% filter(sos_covidconfirmed == "Yes")
+```{r kmdeathacmra, cache=cacheon, dependson="kmdeathacfunc", fig.cap="1-KM Death All-cause MRA"}
+kmfunc(
+  xvar = "sos_ddr_mra",
+  filt = quote(sos_covidconfirmed == "Yes"),
+  xvarname = "MRA",
+  yjust = c(-.055, +.055)
 )
-p <- dF(pchisq(sd$chisq, length(sd$n) - 1, lower.tail = FALSE), dig = 3, p = TRUE)
+```
 
-# c(bottom, left, top, right)
-par(mar = c(6, 6, 1, 1) + 0.1)
-# par(mar=c(4, 4, 1, 1) + 0.1)
-plot(fit,
-  fun = "event",
-  ylab = "Death (%)",
-  xscale = 1,
-  yscale = 100,
-  col = global_kicols,
-  mark.time = FALSE,
-  bty = "n",
-  # xmax = 365.25,
-  xlim = c(-0.4, 80),
-  ylim = c(0, 1),
-  xlab = "Days",
-  axes = F,
-  lwd = 3,
-  lty = c(1, 2),
-  xaxs = "i", yaxs = "i"
+```{r kmdeathacacei, cache=cacheon, dependson="kmdeathacfunc", fig.cap="1-KM Death All-cause ACEi"}
+kmfunc(
+  xvar = "sos_ddr_acei",
+  filt = quote(sos_covidconfirmed == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  xvarname = "ACEi",
+  yjust = c(+.05, -.055)
 )
+```
 
-matlines(c(0, 0), c(0, fit$cumhaz[1]), col = global_kicols[1], lty = 1, lwd = 3)
-matlines(c(0, 0), c(0, fit$cumhaz[fit$strata[1] + 1]), col = global_kicols[2], lty = 2, lwd = 3)
+```{r kmdeathacarb, cache=cacheon, dependson="kmdeathacfunc", fig.cap="1-KM Death All-cause ARB"}
+kmfunc(
+  xvar = "sos_ddr_arb",
+  filt = quote(sos_covidconfirmed == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  xvarname = "ARB",
+  yjust = c(+.05, -.055)
+)
+```
 
-axis(2, seq(0, 1, 0.1), seq(0, 1, 0.1) * 100, las = 2)
-axis(1, seq(0, 80, 20), seq(0, 80, 20))
-
-m11 <- 1 - summary(fit, 70)$surv
-text(60, m11 + c(-.05, +.055), c("No MRA", "MRA"), pos = 4, cex = 1.2)
-
-text(2, 0.05, paste0("Log-rank p = ", p), pos = 4)
-
-mtext("No. at risk", side = 1, line = 3, at = -12, adj = 0, cex = 1)
-
-mtext("No", side = 1, line = 4, at = -10, adj = 0, cex = 1)
-mtext("Yes", side = 1, line = 5, at = -10, adj = 0, cex = 1)
-
-nrisk <- summary(fit, seq(0, 80, 20))$n.risk
-
-axis(1, at = seq(0, 80, 20), labels = nrisk[1:5], line = 3, tick = FALSE, cex.axis = 1)
-axis(1, at = seq(0, 80, 20), labels = nrisk[6:10], line = 4, tick = FALSE, cex.axis = 1)
+```{r kmdeathacrasimra, cache=cacheon, dependson="kmdeathacfunc", fig.cap="1-KM Death All-cause ACEi/ARB + MRA"}
+kmfunc(
+  xvar = "sos_ddr_rasimra",
+  filt = quote(sos_covidconfirmed == "Yes"),
+  xvarname = "ACEi/ARB+MRA",
+  yjust = c(+.05, -.055)
+)
 ```

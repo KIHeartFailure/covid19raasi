@@ -21,6 +21,7 @@ deskstat <- rbind(deskstat, c(
 ))
 
 mykable(deskstat,
-  caption = "Data sources of captured Covid cases"
+  caption = "Data sources of captured Covid cases",
+  scale_down = FALSE
 )
 ```

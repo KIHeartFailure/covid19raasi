@@ -1,5 +1,5 @@
 ---
-title: 'Statistical report: Covid-19 vs RASi/MRA'
+title: 'Statistical report: Covid-19 vs ACEi/ARB and MRA'
 author: 'Statistician: Lina Benson'
   
 date: "`r Sys.Date()`"
@@ -87,12 +87,9 @@ Index date is defined as `r global_indexdtm` (first covid-19 case in Sweden end 
 End of follow-up is defined as `r global_enddtm`, 
 decision based on visual inspection of patterns in NPR and Cause of Death Registry data.
 
-For the negative control analyses the indexdate is instead one year prior `r global_indexdtm - 365` and 
-end of follow-up is defined as `r global_enddtm - 365`.  
-
 ## Population 
 
-The population recieved from Socialstyrelsens consisted of persons with any of the following: 
+The population received from Socialstyrelsens consisted of persons with any of the following: 
 hypertension, diabetes, ischemic heart disease, heart failure, kidney disease, obesity or af 
 (ICD codes in Table \ref{tab:outcomcodes}) defined 
 from the NPR (in-patient or out-patient) from 1997 (1998 Skåne) and alive 2020-01-01. 
@@ -100,12 +97,6 @@ from the NPR (in-patient or out-patient) from 1997 (1998 Skåne) and alive 2020-
 ```{r flow}
 mykable(flow, caption = "Flowchart")
 ```
-
-The population for the negative control analyses is a subset of the main population but 
-patients are requred to have a prior diagnosis of hypertension, diabetes, hf, kidney, 
-ihd, being >= 18 years and not have ARNI 
-(defined as one dispensed prescripton within 5 months) at `r global_indexdtm - 365` 
-and immigrated prior to 2014. 
 
 The median age (IQR) is `r pop %>% summarise(med = dF(median(scb_age), dig = 1),
                                              q1 = dF(quantile(scb_age, probs = 0.25), dig = 1),
@@ -129,10 +120,6 @@ mykable(metaout, caption = "Comorbidities and outcomes from NPR")
 ```{r atc}
 mykable(metalm, caption = "Treatments from DDR")
 ```
-
-Note that the comorbidities, treatments and outcomes used in the analyses 
-of covid and the negative control analyses are constructed based on different 
-time periods.
 
 ### Outcome Covid-19
 
@@ -159,16 +146,14 @@ In models including these variables observations with missing values are exclude
 
 ## Propensity scores
 
-A propensity score for treatment with RASi and MRA respectively was estimated for 
+A propensity score for treatment with ACEi/ARB, MRA, ACEi, ARB and ACEi/ARB+MRA 
+respectively was estimated for 
 each patient with logistic regression with variables indicated in Table \ref{tab:tab1all}. 
-Continuous variables (age) were modeled using 
+Continuous variables (age) were modelled using 
 cubic splines with 4 dfs. The propensity score was then incorporated in the model 
-using inverse probabilty of treatment weighting, truncated at 10, together 
+using inverse probability of treatment weighting, truncated at 10, together 
 with the original variables. Sandwich variance estimators were applied 
 (prob more appropriate with bootstrap ci but will take too long). 
-
-This was done in a similar manner for the population used for the negative control 
-analyses including the variables used for this analyses. 
 
 ## Baseline characteristics
 
@@ -180,12 +165,26 @@ analyses including the variables used for this analyses.
 
 ```
 
+\clearpage
+\newpage
+
+Time on treatment is calculated as time from first (from 1 July 2005, start of DDR) 
+to last (prior to `r global_indexdtm`) dispensed prescription for the respective treament.
+
+```{r, child = "../src/deskstattimetreats.Rmd"}
+
+```
+
+Patients on ACEi N = `r pop %>% filter(!(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & sos_ddr_acei == "Yes") %>% count() %>% pull(n)` 
+and ARB N = `r pop %>% filter(!(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & sos_ddr_arb == "Yes") %>% count() %>% pull(n)` respectively in the separate analysis, excluding patients with both ACEi and ARB. 
+
 ## Covid-19
 
-The association between RASi/MRA and Covid-19 was investigated using logistic 
+The association between ACEi/ARB, ACEi and ARB separately, MRA and ACEi/ARB + MRA 
+and Covid-19 was investigated using logistic 
 regression models for partly the whole cohort and partly predefined subgroups.
 Variables indicated in Table \ref{tab:tab1all} are included in the models where 
-continuous variables (age) were modeled using cubic splines with 4 dfs. 
+continuous variables (age) were modelled using cubic splines with 4 dfs. 
 
 ### Assumptions
 
@@ -212,14 +211,17 @@ Unmeasured confounders were assessed according to [@unmeasuredc].
 ```
 
 All unmeasured confounders are presumed to be present 
-in the RASi/MRA group with `r p[2] * 100`% and in the no RASi/MRA group 
-with `r p[1] * 100`%. 
+in the respective treatments groups with `r #p[2] * 100`% and in the respective no treatments group 
+with `r #p[1] * 100`%. 
 Interpretation: if there is an unmeasured confounder with an association 
-with covid as `r orucrasi[1]` (harmful), for example eGFR, and eGFR is present 
-in the RASi group with `r p[2]*100`% and in the no RASi group with `r p[1]*100`%, the effect of RASi 
-would be non-significant. If you up the OR to `r orucrasi[2]` for the unmeasured confounder 
-you have a statistically significant harmful effect and if you up the OR to `r orucrasi[3]` 
+with covid as `r #orucrasi[1]` (harmful), for example eGFR, and eGFR is present 
+in the ACEi/ARB group with `r #p[2]*100`% and in the no ACEi/ARB group with `r #p[1]*100`%, 
+the effect of ACEi/ARB would be non-significant. If you up the OR to `r #orucrasi[2]` for the unmeasured confounder 
+you have a statistically significant harmful effect and if you up the OR to `r #orucrasi[3]` 
 very harmful effect (>1.5). 
+
+The unmeasured confounders are selected so as to have an estimate, including 
+the 95% CI, below 1, crossing 1 and above 1. And also having one point estimate above 1.5. 
 
 \clearpage
 \newpage
@@ -230,11 +232,11 @@ very harmful effect (>1.5).
 
 ```
 
-The association between RASi/MRA and all-cause mortality after Covid-19 was 
+The association between treatments and all-cause mortality after Covid-19 was 
 investigated using cox regression models for partly the whole cohort and 
 partly predefined subgroups. Only patients with Covid-19 were included in the 
 models. Variables indicated in Table \ref{tab:tab1all} are included in the models 
-where continuous variables (age) were modeled using cubic splines with 4 dfs.
+where continuous variables (age) were modelled using cubic splines with 4 dfs.
 
 ### Assumptions
 
@@ -263,11 +265,21 @@ Unmeasured confounders were similar assessed according to [@unmeasuredc].
 ```
 
 All unmeasured confounders are presumed to be present 
-in the RASi/MRA group with `r p[2] * 100`% and in the no RASi/MRA group 
-with `r p[1] * 100`%. 
+in the respective treatments groups with `r pdeath[2] * 100`% and in the respective 
+no treatments groups with `r pdeath[1] * 100`%. 
 
 \clearpage
 \newpage
+
+The association between treatments and all-cause mortality after Covid-19 was also
+investigated using logistic regression models for partly the whole cohort and 
+partly predefined subgroups. Only patients with Covid-19 and 30 days follow-up 
+were included in the models. Variables indicated in Table \ref{tab:tab1all} are included in the models 
+where continuous variables (age) were modelled using cubic splines with 4 dfs.
+
+```{r, child = "../src/outdeathortab.Rmd"}
+
+```
 
 # Reproducibility
 

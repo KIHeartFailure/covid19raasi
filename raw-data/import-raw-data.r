@@ -5,18 +5,28 @@ ProjectTemplate::reload.project(cache_loading = FALSE)
 
 scbpath <- "./raw-data/SCB/Leverans/"
 
-lisa <- readdata_sas(path = scbpath, filename = "lbenson_lev_lisa_2018",
-                     checkdups = TRUE)
-fodelseuppg <- readdata_sas(path = scbpath, filename = "lbenson_lev_fodelseuppg", 
-                            checkdups = TRUE)
-migration <- readdata_sas(path = scbpath, filename = "lbenson_lev_migrationer", 
-                          lopnr = "Lopnr")
-rtb <- readdata_sas(path = scbpath, filename = "lbenson_lev_rtb_2019",
-                    checkdups = TRUE)
-#doddatum <- readdata_sas(path = scbpath, filename = "lbenson_lev_doddatum",
+lisa <- readdata_sas(
+  path = scbpath, filename = "lbenson_lev_lisa_2018",
+  checkdups = TRUE
+)
+fodelseuppg <- readdata_sas(
+  path = scbpath, filename = "lbenson_lev_fodelseuppg",
+  checkdups = TRUE
+)
+migration <- readdata_sas(
+  path = scbpath, filename = "lbenson_lev_migrationer",
+  lopnr = "Lopnr"
+)
+rtb <- readdata_sas(
+  path = scbpath, filename = "lbenson_lev_rtb_2019",
+  checkdups = TRUE
+)
+# doddatum <- readdata_sas(path = scbpath, filename = "lbenson_lev_doddatum",
 #                      checkdups = TRUE, lopnr = "Lopnr")
-antalbarn <- readdata_sas(path = scbpath, filename = "lbenson_lev_antalbarn",
-                          checkdups = TRUE)
+antalbarn <- readdata_sas(
+  path = scbpath, filename = "lbenson_lev_antalbarn",
+  checkdups = TRUE
+)
 
 
 # Store as RData in /data folder ------------------------------------------
@@ -36,16 +46,44 @@ sospath <- "./raw-data/SOS/"
 
 ## LM ---------------------------------------------------------------------
 
-lm1920 <- readdata_sas(path = sospath, filename = "ut_lmed_19_20_18194_2020/lmed_19_20_18194_2020", clean = FALSE)
-lm1718 <- readdata_sas(path = sospath, filename = "ut_lmed_17_18_18194_2020/lmed_17_18_18194_2020", clean = FALSE)
-
-lm <- rbind(lm1920, lm1718)
+lm <- readdata_sas(path = sospath, filename = "ut_lmed_19_20_18194_2020/lmed_19_20_18194_2020", clean = FALSE)
 
 ### Store as RData in /data folder ----------------------------------------
 
 save(file = "./data/rawData_sos_lm.RData", "lm")
 
+lmrasmra <- lm %>%
+  mutate(
+    atcneed = stringr::str_detect(ATC, "^(C09A|C09B|C09C|C09D(?!X04)|C03DA)")
+  ) %>%
+  filter(atcneed)
+
 rm(lm)
+
+## Only MRA/RASi LM -------------------------------------------------------
+
+lmread <- function(years) {
+  lmtmp <- readdata_sas(path = sospath, filename = paste0("ut_lmed_", years, "_18194_2020/lmed_", years, "_18194_2020"), clean = FALSE)
+  lmtmp <- lmtmp %>%
+    mutate(
+      atcneed = stringr::str_detect(ATC, "^(C09A|C09B|C09C|C09D(?!X04)|C03DA)")
+    ) %>%
+    filter(atcneed)
+
+  lmrasmra <<- rbind(lmrasmra, lmtmp)
+}
+
+lmread("17_18")
+lmread("14_16")
+lmread("11_13")
+lmread("08_10")
+lmread("05_07")
+
+### Store as RData in /data folder ----------------------------------------
+
+save(file = "./data/rawData_sos_lmrasmra.RData", "lmrasmra")
+
+rm(lmrasmra)
 
 ## Death -----------------------------------------------------------------
 
@@ -78,11 +116,12 @@ save(file = paste0(sospath, "TEMPdata/svov_cov.RData"), list = c(
   "sv_cov2019",
   "ov_cov2019",
   "sv_cov2020",
-  "ov_cov2020"))
+  "ov_cov2020"
+))
 
 rm(list = c(
   "sv_cov2019",
   "ov_cov2019",
   "sv_cov2020",
-  "ov_cov2020"))
-
+  "ov_cov2020"
+))

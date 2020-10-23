@@ -2,75 +2,52 @@
 
 survmy <- function(time = "sos_outtime_death", event = "sos_death",
                    modname, data,
-                   modvarsmy, weightsmy = c("weight_rasi", "weight_mra")) {
+                   modvarsmy, weight) {
   tmpdata <- data
 
-  out <- list(
-    data.frame(matrix(NA, ncol = 5, nrow = 4, 1)),
-    data.frame(matrix(NA, ncol = 5, nrow = 4, 1))
+  out <- data.frame(matrix(NA, ncol = 5, nrow = 4, 1))
+
+  out[1, 1] <- modname
+
+  colnames(out) <- c("Outcome/Subgroup", "Model", "No", "Yes", "p-value")
+
+  ## incidence rate
+  out[1, 2] <- "Incidence"
+
+  tmpdata <- tmpdata %>%
+    mutate(eventcount = if_else(!!sym(event) == "Yes", 1, 0))
+
+  ev <- by(tmpdata$eventcount, tmpdata[, modvarsmy[1]], sum)
+  s <- by(tmpdata[, time], tmpdata[, modvarsmy[1]], sum) / 365.25
+  r <- pois.exact(x = ev, pt = s)
+
+  out[1, 3:4] <- paste0(
+    ev, ", ",
+    dF(s, dig = 0), ", ",
+    dF(r$rate, dig = 1), " (",
+    dF(r$lower, dig = 1), "-",
+    dF(r$upper, dig = 1), ")"
   )
-  names(out) <- modvarsmy[1:2]
 
-  for (i in 1:2) {
-    out[[i]][1, 1] <- modname
+  # cox regressions
+  ## crude
+  mod <- coxph(formula(paste0(
+    "Surv(", time, ",", event, "=='Yes') ~ ",
+    modvarsmy[1]
+  )),
+  data = tmpdata
+  )
+  smod <- summary(mod)
+  out[2, 2] <- "Crude HR (95% CI)"
+  out[2, 3:5] <- c(
+    "ref", paste0(
+      dF(smod$conf.int[1, 1], dig = 2),
+      " (", dF(smod$conf.int[1, 3], dig = 2),
+      "-", dF(smod$conf.int[1, 4], dig = 2), ")"
+    ),
+    dF(smod$coef[1, 5], dig = 3, p = TRUE)
+  )
 
-    colnames(out[[i]]) <- c("Outcome/Subgroup", "Model", "No", "Yes", "p-value")
-
-    ## incidence rate
-    out[[i]][1, 2] <- "Incidence"
-
-    tmpdata <- tmpdata %>%
-      mutate(eventcount = if_else(!!sym(event) == "Yes", 1, 0))
-
-    ev <- by(tmpdata$eventcount, tmpdata[, modvarsmy[i]], sum)
-    s <- by(tmpdata[, time], tmpdata[, modvarsmy[i]], sum) / 365.25
-    r <- pois.exact(x = ev, pt = s)
-
-    out[[i]][1, 3:4] <- paste0(
-      ev, ", ",
-      dF(s, dig = 0), ", ",
-      dF(r$rate, dig = 1), " (",
-      dF(r$lower, dig = 1), "-",
-      dF(r$upper, dig = 1), ")"
-    )
-
-    # cox regressions
-    ## crude
-    mod <- coxph(formula(paste0("Surv(", time, ",", event, "=='Yes') ~ ", modvarsmy[i])),
-      data = tmpdata
-    )
-    smod <- summary(mod)
-    out[[i]][2, 2] <- "Crude HR (95% CI)"
-    out[[i]][2, 3:5] <- c(
-      "ref", paste0(
-        dF(smod$conf.int[1, 1], dig = 2),
-        " (", dF(smod$conf.int[1, 3], dig = 2),
-        "-", dF(smod$conf.int[1, 4], dig = 2), ")"
-      ),
-      dF(smod$coef[1, 5], dig = 3, p = TRUE)
-    )
-
-    ## adj ps ipw
-    mod <- coxph(formula(paste0(
-      "Surv(", time, ",", event, "=='Yes') ~ ",
-      paste(modvarsmy, collapse = " + ")
-    )),
-    weights = tmpdata %>% pull(!!sym(weightsmy[i])),
-    data = tmpdata
-    )
-
-    smod <- jtools::get_robust_se(mod, type = "HC0")
-
-    out[[i]][4, 2] <- "Adj IPW HR (95% CI)"
-    out[[i]][4, 3:5] <- c(
-      "ref", paste0(
-        dF(exp(smod$coefs[i, 1]), dig = 2),
-        " (", dF(exp(smod$coefs[i, 1] - global_z05 * smod$coefs[i, 2]), dig = 2),
-        "-", dF(exp(smod$coefs[i, 1] + global_z05 * smod$coefs[i, 2]), dig = 2), ")"
-      ),
-      dF(smod$coefs[i, 4], dig = 3, p = TRUE)
-    )
-  }
 
   ## adj
   mod <- coxph(formula(paste0(
@@ -80,8 +57,8 @@ survmy <- function(time = "sos_outtime_death", event = "sos_death",
   data = tmpdata
   )
   smod <- summary(mod)
-  out[[1]][3, 2] <- "Adj HR (95% CI)"
-  out[[1]][3, 3:5] <- c(
+  out[3, 2] <- "Adj HR (95% CI)"
+  out[3, 3:5] <- c(
     "ref", paste0(
       dF(smod$conf.int[1, 1], dig = 2),
       " (", dF(smod$conf.int[1, 3], dig = 2),
@@ -89,88 +66,324 @@ survmy <- function(time = "sos_outtime_death", event = "sos_death",
     ),
     dF(smod$coef[1, 5], dig = 3, p = TRUE)
   )
-  out[[2]][3, 2] <- "Adj HR (95% CI)"
-  out[[2]][3, 3:5] <- c(
+
+  ## adj ps ipw
+  mod <- coxph(formula(paste0(
+    "Surv(", time, ",", event, "=='Yes') ~ ",
+    paste(modvarsmy, collapse = " + ")
+  )),
+  weights = tmpdata %>% pull(!!weight),
+  data = tmpdata
+  )
+
+  smod <- jtools::get_robust_se(mod, type = "HC0")
+
+  out[4, 2] <- "Adj IPW HR (95% CI)"
+  out[4, 3:5] <- c(
     "ref", paste0(
-      dF(smod$conf.int[2, 1], dig = 2),
-      " (", dF(smod$conf.int[2, 3], dig = 2),
-      "-", dF(smod$conf.int[2, 4], dig = 2), ")"
+      dF(exp(smod$coefs[1, 1]), dig = 2),
+      " (", dF(exp(smod$coefs[1, 1] - global_z05 * smod$coefs[1, 2]), dig = 2),
+      "-", dF(exp(smod$coefs[1, 1] + global_z05 * smod$coefs[1, 2]), dig = 2), ")"
     ),
-    dF(smod$coef[2, 5], dig = 3, p = TRUE)
+    dF(smod$coefs[1, 4], dig = 3, p = TRUE)
   )
 
   return(out)
 }
+```
 
+```{r outaftercovidtabrasimra, cache=cacheon, dependson="outaftercovidtab"}
 
+# RASi
 out11 <- survmy(
   modname = "All",
   data = pop %>% filter(sos_covidconfirmed == "Yes"),
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns)
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
+  weight = "weight_rasi"
 )
 out12 <- survmy(
   modname = "HF",
   data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes"),
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"])
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
+  weight = "weight_rasi"
 )
 out13 <- survmy(
   modname = "Hypertension",
   data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes"),
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"])
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
+  weight = "weight_rasi"
 )
 out14 <- survmy(
   modname = "Kidney disease",
   data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes"),
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"])
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
+  weight = "weight_rasi"
 )
 out15 <- survmy(
   modname = "IHD",
   data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes"),
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"])
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
+  weight = "weight_rasi"
 )
 out16 <- survmy(
   modname = "Diabetes",
   data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes"),
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"])
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
+  weight = "weight_rasi"
 )
-
 out17 <- survmy(
   modname = "Stockholm",
   data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes"),
-  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"])
+  modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
+  weight = "weight_rasi"
 )
 
+# MRA
+out21 <- survmy(
+  modname = "All",
+  data = pop %>% filter(sos_covidconfirmed == "Yes"),
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns),
+  weight = "weight_mra"
+)
+out22 <- survmy(
+  modname = "HF",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes"),
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_hf"]),
+  weight = "weight_mra"
+)
+out23 <- survmy(
+  modname = "Hypertension",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes"),
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
+  weight = "weight_mra"
+)
+out24 <- survmy(
+  modname = "Kidney disease",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes"),
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_renal"]),
+  weight = "weight_mra"
+)
+out25 <- survmy(
+  modname = "IHD",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes"),
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_ihd"]),
+  weight = "weight_mra"
+)
+out26 <- survmy(
+  modname = "Diabetes",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes"),
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
+  weight = "weight_mra"
+)
+out27 <- survmy(
+  modname = "Stockholm",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes"),
+  modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
+  weight = "weight_mra"
+)
 
 outcoxall <- cbind(
   rbind(
-    out11[["sos_ddr_rasi"]], out12[["sos_ddr_rasi"]], out13[["sos_ddr_rasi"]],
-    out14[["sos_ddr_rasi"]], out15[["sos_ddr_rasi"]], out16[["sos_ddr_rasi"]],
-    out17[["sos_ddr_rasi"]]
+    out11, out12, out13,
+    out14, out15, out16,
+    out17
   ),
   rbind(
-    out11[["sos_ddr_mra"]], out12[["sos_ddr_mra"]], out13[["sos_ddr_mra"]],
-    out14[["sos_ddr_mra"]], out15[["sos_ddr_mra"]], out16[["sos_ddr_mra"]],
-    out17[["sos_ddr_mra"]]
+    out21, out22, out23,
+    out24, out25, out26,
+    out27
   )[, 3:5]
 )
 
-write.xlsx(outcoxall, paste0("./output/tabs/deathaftercovid_", Sys.Date(), ".xlsx"), rowNames = FALSE)
+write.xlsx(outcoxall, paste0("./output/tabs/deathaftercovid_rasimra_", Sys.Date(), ".xlsx"), rowNames = FALSE)
 
-myHeader <- c(" " = 1, " " = 1, "RASi" = 3, "MRA" = 3)
-names(myHeader) <- c(" ", " ", "RASi", "MRA")
+myHeader <- c(" " = 1, " " = 1, "ACEi/ARB" = 3, "MRA" = 3)
+names(myHeader) <- c(" ", " ", "ACEi/ARB", "MRA")
 
 
 footnote(
   mykable(outcoxall,
     fontsize = 6,
-    caption = "All-cause mortality after confirmed Covid-19"
+    caption = "All-cause mortality after confirmed Covid-19 ACEi/ARB and MRA"
   ) %>%
     landscape() %>%
     add_header_above(myHeader),
   general = c(
     "Incidence = no events, sum py, rate/py (95% CI)",
     "Adj = adjusted for variables indicated in baseline table.",
-    "Adj IPW = adjusted for variables indicated in baseline table and using inverse probabilty weights for RASi and MRA respectively."
+    "Adj IPW = adjusted for variables indicated in baseline table and using inverse probabilty weights for ACEi/ARB and MRA respectively."
+  )
+)
+```
+
+```{r outaftercovidtabrasimra2, cache=cacheon, dependson="outaftercovidtab"}
+
+# ACEi
+out11 <- survmy(
+  modname = "All",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns),
+  weight = "weight_acei"
+)
+out12 <- survmy(
+  modname = "HF",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
+  weight = "weight_acei"
+)
+out13 <- survmy(
+  modname = "Hypertension",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
+  weight = "weight_acei"
+)
+out14 <- survmy(
+  modname = "Kidney disease",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
+  weight = "weight_acei"
+)
+out15 <- survmy(
+  modname = "IHD",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
+  weight = "weight_acei"
+)
+out16 <- survmy(
+  modname = "Diabetes",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
+  weight = "weight_acei"
+)
+out17 <- survmy(
+  modname = "Stockholm",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
+  weight = "weight_acei"
+)
+
+# ARB
+out21 <- survmy(
+  modname = "All",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns),
+  weight = "weight_arb"
+)
+out22 <- survmy(
+  modname = "HF",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
+  weight = "weight_arb"
+)
+out23 <- survmy(
+  modname = "Hypertension",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
+  weight = "weight_arb"
+)
+out24 <- survmy(
+  modname = "Kidney disease",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
+  weight = "weight_arb"
+)
+out25 <- survmy(
+  modname = "IHD",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
+  weight = "weight_arb"
+)
+out26 <- survmy(
+  modname = "Diabetes",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
+  weight = "weight_arb"
+)
+out27 <- survmy(
+  modname = "Stockholm",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
+  weight = "weight_arb"
+)
+
+# ACEi/ARB + MRA
+out31 <- survmy(
+  modname = "All",
+  data = pop %>% filter(sos_covidconfirmed == "Yes"),
+  modvarsmy = c("sos_ddr_rasimra", modvarsns),
+  weight = "weight_rasimra"
+)
+out32 <- survmy(
+  modname = "HF",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes"),
+  modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_hf"]),
+  weight = "weight_rasimra"
+)
+out33 <- survmy(
+  modname = "Hypertension",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes"),
+  modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
+  weight = "weight_rasimra"
+)
+out34 <- survmy(
+  modname = "Kidney disease",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes"),
+  modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_renal"]),
+  weight = "weight_rasimra"
+)
+out35 <- survmy(
+  modname = "IHD",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes"),
+  modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
+  weight = "weight_rasimra"
+)
+out36 <- survmy(
+  modname = "Diabetes",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes"),
+  modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
+  weight = "weight_rasimra"
+)
+out37 <- survmy(
+  modname = "Stockholm",
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes"),
+  modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
+  weight = "weight_rasimra"
+)
+
+outcoxall <- cbind(
+  rbind(
+    out11, out12, out13,
+    out14, out15, out16,
+    out17
+  ),
+  rbind(
+    out21, out22, out23,
+    out24, out25, out26,
+    out27
+  )[, 3:5],
+  rbind(
+    out31, out32, out33,
+    out34, out35, out36,
+    out37
+  )[, 3:5]
+)
+
+write.xlsx(outcoxall, paste0("./output/tabs/deathaftercovid_rasimra2_", Sys.Date(), ".xlsx"), rowNames = FALSE)
+
+myHeader <- c(" " = 1, " " = 1, "ACEi" = 3, "ARB" = 3, "ACEi/ARB + MRA" = 3)
+names(myHeader) <- c(" ", " ", "ACEi", "ARB", "ACEi/ARB + MRA")
+
+footnote(
+  mykable(outcoxall,
+    fontsize = 6,
+    caption = "All-cause mortality after confirmed Covid-19 ACEi, ARB and ACEi/ARB + MRA"
+  ) %>%
+    landscape() %>%
+    add_header_above(myHeader),
+  general = c(
+    "Incidence = no events, sum py, rate/py (95% CI)",
+    "Adj = adjusted for variables indicated in baseline table.",
+    "Adj IPW = adjusted for variables indicated in baseline table and using inverse probabilty weights for ACEi, ARB and ACEi/ARB+MRA respectively."
   )
 )
 ```

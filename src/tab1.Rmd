@@ -48,9 +48,8 @@ tab1func <- function(data, stratavar = c("sos_ddr_rasi", "sos_ddr_mra"),
 
   tab1out$...1 <- ifelse(stri_extract_first_words(tab1out$tmp_varsforfoot) %in%
     c(
-      modvars, modvars_nc,
-      "sos_ddr_rasi", "sos_ddr_mra",
-      "sos_ddr_nc_rasi", "sos_ddr_nc_mra"
+      modvars,
+      "sos_ddr_rasi", "sos_ddr_mra"
     ),
   paste0(tab1out$...1, footnote_marker_symbol(1)), tab1out$...1
   )
@@ -73,8 +72,8 @@ tab1func <- function(data, stratavar = c("sos_ddr_rasi", "sos_ddr_mra"),
   write.xlsx(tab1out, paste0("./output/tabs/tab1_", title, "_", Sys.Date(), ".xlsx"), rowNames = FALSE)
 
 
-  myHeader <- c(" " = 1, " " = 1, "RASi" = 4, "MRA" = 4)
-  names(myHeader) <- c(" ", " ", "RASi", "MRA")
+  myHeader <- c(" " = 1, " " = 1, "ACEi/ARB" = 4, "MRA" = 4)
+  names(myHeader) <- c(" ", " ", "ACEi/ARB", "MRA")
 
 
   footnote(
@@ -98,7 +97,7 @@ tab1func <- function(data, stratavar = c("sos_ddr_rasi", "sos_ddr_mra"),
 }
 ```
 
-```{r tab1all, cache=cacheon, dependeson = "tab1"}
+```{r tab1all, cache=cacheon, dependson = "tab1"}
 
 tab1func(
   data = pop,
@@ -111,15 +110,5 @@ tab1func(
 tab1func(
   data = pop %>% filter(sos_covidconfirmed == "Yes"),
   title = "Covid-19"
-)
-```
-
-```{r tab1negcontrol, cache=cacheon, dependeson = "tab1"}
-
-tab1func(
-  data = pop %>% filter(pop_nc == "Yes"),
-  title = "Negative control",
-  stratavar = c("sos_ddr_nc_rasi", "sos_ddr_nc_mra"),
-                     varsfortab = tabvars_nc
 )
 ```

@@ -1,0 +1,28 @@
+```{r deskstattimetreats, cache=cacheon}
+
+timetreatsvars <- names(pop)[str_detect(names(pop), "(_time)")]
+
+tab1_tmp <- CreateTableOne(
+  vars = timetreatsvars,
+  data = pop
+)
+tab1 <- print(tab1_tmp,
+  varLabels = TRUE,
+  printToggle = FALSE,
+  nonnormal = timetreatsvars,
+  contDigits = 1,
+  explain = FALSE,
+  noSpaces = TRUE
+)
+
+tab1 <- data.frame(cbind(
+  rownames(tab1), tab1
+))[2:nrow(tab1), ]
+
+colnames(tab1) <- c("Treatment", "Time, years (median [q1-q3])")
+
+mykable(tab1,
+  caption = paste0("Time on treatment"),
+  scale_down = FALSE
+)
+```

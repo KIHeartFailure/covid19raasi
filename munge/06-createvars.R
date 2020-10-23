@@ -20,8 +20,9 @@ pop <- pop %>%
       sos_out_hospcovidconfirmed == "Yes", "Yes", "No"),
     sos_ddr_rasi = if_else(sos_ddr_acei == "Yes" |
       sos_ddr_arb == "Yes", "Yes", "No"),
-    sos_ddr_nc_rasi = if_else(sos_ddr_nc_acei == "Yes" |
-      sos_ddr_nc_arb == "Yes", "Yes", "No"),
+    sos_ddr_rasimra = if_else(sos_ddr_rasi == "Yes" &
+                             sos_ddr_mra == "Yes", "Yes", "No"),
+    
     scb_dispincome_cat = case_when(
       scb_dispincome < inc[[1]] ~ 1,
       scb_dispincome < inc[[2]] ~ 2,
@@ -34,17 +35,20 @@ pop <- pop %>%
       is.na(coviddtm) & sos_deathcovidconfulorsak == "Yes" ~ 0,
       TRUE ~ as.numeric(censdtm - coviddtm)
     ),
-    sos_outtime_death = if_else(sos_outtime_death < 0, 0, sos_outtime_death)
+    sos_outtime_death = if_else(sos_outtime_death < 0, 0, sos_outtime_death),
     # sos_outtime_death = sos_outtime_death + 1, # if found in CDR or die on same day as hosp will otherwise have 0 days fu
+    tmp_covidincdtm = if_else(sos_covidconfirmed == "Yes", coalesce(coviddtm, sos_deathdtm), as.Date(NA)),
+    sos_out_death30d = case_when(
+      tmp_covidincdtm + 30 > global_enddtm | is.na(tmp_covidincdtm) ~ NA_character_,
+      sos_outtime_death <= 30 ~ as.character(sos_death),
+      sos_outtime_death > 30 ~ "No"
+    )
   ) %>%
   select(
     LopNr,
     indexdtm,
-    indexdtm_nc,
     coviddtm,
     censdtm,
-    censdtm_nc,
-    pop_nc, 
     contains("scb_"),
     contains("sos_ddr_"),
     contains("sos_com_"),

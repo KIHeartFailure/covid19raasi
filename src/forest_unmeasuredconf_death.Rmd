@@ -1,249 +1,183 @@
-```{r forestunmeasuredconfrasdeath, cache=cacheon, fig.cap="Unmeasured confounders RASi outcome death"}
+```{r forestunmeasuredconfdeath, cache=cacheon}
 
-outforest <- data.frame(matrix(NA, ncol = 5, nrow = 5))
-colnames(outforest) <- c("Model", "HRtext", "logHR", "loglci", "loguci")
+pdeath <- c(0.7, 0.35)
 
-# Crude
-mod <- coxph(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_rasi,
-  data = pop %>% filter(sos_covidconfirmed == "Yes")
-)
-smod <- summary(mod)
+forestufdeath <- function(xvar, xlab, xvaradj, weight, unmeasuredc, filt) {
+  outforest <- data.frame(matrix(NA, ncol = 5, nrow = 5))
+  colnames(outforest) <- c("Model", "HRtext", "logHR", "loglci", "loguci")
 
-outforest[1, 1] <- "Crude"
-outforest[1, 3] <- log(smod$conf.int[1, 1])
-outforest[1, 4] <- log(smod$conf.int[1, 3])
-outforest[1, 5] <- log(smod$conf.int[1, 4])
-outforest[1, 2] <- paste0(
-  dF(exp(outforest[1, 3]), dig = 2),
-  " (", dF(exp(outforest[1, 4]), dig = 2),
-  "-", dF(exp(outforest[1, 5]), dig = 2), ")"
-)
+  # Crude
+  mod <- coxph(formula(paste("Surv(sos_outtime_death, sos_death == 'Yes') ~ ", xvar)),
+    data = pop %>% filter(!!filt)
+  )
+  smod <- summary(mod)
 
-# Adj pS IPW
-mod <- coxph(formula(paste0(
-  "Surv(sos_outtime_death, sos_death == 'Yes') ~ ",
-  paste(c("sos_ddr_rasi", "sos_ddr_mra", modvarsns), collapse = " + "))),
-weights = weight_rasi,
-data = pop %>% filter(sos_covidconfirmed == "Yes")
-)
+  outforest[1, 1] <- "Crude"
+  outforest[1, 3] <- log(smod$conf.int[1, 1])
+  outforest[1, 4] <- log(smod$conf.int[1, 3])
+  outforest[1, 5] <- log(smod$conf.int[1, 4])
+  outforest[1, 2] <- paste0(
+    dF(exp(outforest[1, 3]), dig = 2),
+    " (", dF(exp(outforest[1, 4]), dig = 2),
+    "-", dF(exp(outforest[1, 5]), dig = 2), ")"
+  )
 
-smod <- jtools::get_robust_se(mod, type = "HC0")
+  # Adj pS IPW
+  mod <- coxph(formula(paste0(
+    "Surv(sos_outtime_death, sos_death == 'Yes') ~ ", xvar, " + ", xvaradj,
+    paste(modvarsns, collapse = " + ")
+  )),
+  weights = pop %>% filter(!!filt) %>% pull(!!weight),
+  data = pop %>% filter(!!filt)
+  )
 
-outforest[2, 1] <- "Adjusted"
-outforest[2, 3] <- smod$coefs[1, 1]
-outforest[2, 4] <- smod$coefs[1, 1] - global_z05 * smod$coefs[1, 2]
-outforest[2, 5] <- smod$coefs[1, 1] + global_z05 * smod$coefs[1, 2]
-outforest[2, 2] <- paste0(
-  dF(exp(outforest[2, 3]), dig = 2),
-  " (", dF(exp(outforest[2, 4]), dig = 2),
-  "-", dF(exp(outforest[2, 5]), dig = 2), ")"
-)
+  smod <- jtools::get_robust_se(mod, type = "HC0")
 
-# Adj with unmeasured confounder I-III
+  outforest[2, 1] <- "Adjusted"
+  outforest[2, 3] <- smod$coefs[1, 1]
+  outforest[2, 4] <- smod$coefs[1, 1] - global_z05 * smod$coefs[1, 2]
+  outforest[2, 5] <- smod$coefs[1, 1] + global_z05 * smod$coefs[1, 2]
+  outforest[2, 2] <- paste0(
+    dF(exp(outforest[2, 3]), dig = 2),
+    " (", dF(exp(outforest[2, 4]), dig = 2),
+    "-", dF(exp(outforest[2, 5]), dig = 2), ")"
+  )
 
-hruc <- c(1.4, 2, 10)
-p <- c(0.7, 0.35)
+  # Adj with unmeasured confounder I-III
 
-unconf <- obsSensSCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
-  g0 = hruc,
-  p0 = p[1], p1 = p[2],
-  logHaz = TRUE
-)
+  unconf <- obsSensSCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
+    g0 = unmeasuredc,
+    p0 = pdeath[1], p1 = pdeath[2],
+    logHaz = TRUE
+  )
 
-outforest[3:5, 1] <- paste0("Adjusted counfounder\nHR = ", hruc)
-outforest[3:5, 3] <- unconf[[1]][1:3]
-outforest[3:5, 4] <- unconf[[2]][1:3]
-outforest[3:5, 5] <- unconf[[3]][1:3]
+  outforest[3:5, 1] <- paste0("Adjusted UMC HR = ", unmeasuredc)
+  outforest[3:5, 3] <- unconf[[1]][1:3]
+  outforest[3:5, 4] <- unconf[[2]][1:3]
+  outforest[3:5, 5] <- unconf[[3]][1:3]
 
-outforest[3:5, 2] <- paste0(
-  dF(exp(outforest[3:5, 3]), dig = 2),
-  " (", dF(exp(outforest[3:5, 4]), dig = 2),
-  "-", dF(exp(outforest[3:5, 5]), dig = 2), ")"
-)
+  outforest[3:5, 2] <- paste0(
+    dF(exp(outforest[3:5, 3]), dig = 2),
+    " (", dF(exp(outforest[3:5, 4]), dig = 2),
+    "-", dF(exp(outforest[3:5, 5]), dig = 2), ")"
+  )
 
-cextext <- 1
+  cextext <- 1
 
-par(mar = c(4, 16, 1, 2) + 0.2)
+  par(mar = c(4, 16, 1, 2) + 0.2)
 
+  plot(0, 0,
+    type = "h",
+    xlab = NA,
+    xlim = c(
+      log(.6),
+      log(1.9)
+    ),
+    ylim = c(1, nrow(outforest) + .4),
+    axes = FALSE,
+    ylab = NA,
+    main = NA,
+    panel.first = rect(c(log(0.6), log(1), log(1.5)), -1e6, c(log(1), log(1.5), log(1.9)), 1e6,
+      col = c("palegreen3", "darkgoldenrod1", "tomato3"), border = NA
+    )
+  )
 
-plot(0, 0,
-  type = "h",
-  xlab = NA,
-  xlim = c(
-    log(.7),
-    log(1.8)
-  ),
-  ylim = c(1, nrow(outforest) + .4),
-  axes = FALSE,
-  ylab = NA,
-  main = NA,
-  panel.first = rect(c(log(0.7), log(1), log(1.5)), -1e6, c(log(1), log(1.5), log(1.8)), 1e6, 
-                     col = c("palegreen3", "darkgoldenrod1", "tomato3"), border = NA)
-)
+  matplot(rev(outforest$logHR), 1:nrow(outforest),
+    cex = 2,
+    type = "p",
+    pch = 22,
+    bg = 1,
+    col = 1,
+    add = TRUE
+  )
 
-matplot(rev(outforest$logHR), 1:nrow(outforest),
-  cex = 2,
-  type = "p",
-  pch = 22,
-  bg = 1,
-  col = 1,
-  add = TRUE
-)
+  for (i in 1:nrow(outforest)) {
+    matplot(c(rev(outforest$loglci)[i], rev(outforest$loguci)[i]), c(i, i),
+      type = "l", add = TRUE, col = 1, cex = 2
+    )
+  }
+  # matplot(c(log(.8), log(.8)), c(-1, nrow(outforest) + 0.5), type = "l", lwd = 2, lty = 1, add = TRUE, col = "green") # neutral
+  matplot(c(log(1), log(1)), c(-1, nrow(outforest) + 1), type = "l", lwd = 1, lty = 1, add = TRUE, col = 1) # harmful
+  matplot(c(log(1.5), log(1.5)), c(-1, nrow(outforest) + 1), type = "l", lwd = 1, lty = 1, add = TRUE, col = 1) # very harmful
 
+  axis(1,
+    cex.axis = cextext, at = log(seq(0.6, 1.9, 0.1)),
+    labels = c(0.6, 0.7, 0.8, 0.9, 1.0, NA, 1.2, NA, NA, 1.5, NA, NA, NA, 1.9)
+  )
 
-for (i in 1:nrow(outforest)) {
-  matplot(c(rev(outforest$loglci)[i], rev(outforest$loguci)[i]), c(i, i),
-    type = "l", add = TRUE, col = 1, cex = 2
+  axis(2,
+    at = 1:nrow(outforest), labels = rev(outforest$Model),
+    cex.axis = cextext, tick = FALSE, las = 2, line = 15, hadj = 0
+  )
+
+  axis(2,
+    at = c(1:nrow(outforest), nrow(outforest) + 0.5),
+    labels = c(rev(outforest$HRtext), "Hazard Ratio (95% CI)"),
+    cex.axis = cextext, tick = FALSE, las = 2, line = 2.5, hadj = 0.5
+  )
+
+  axis(1,
+    at = 0.04, cex.axis = cextext,
+    labels = xlab, line = 1, tick = FALSE
+  )
+  axis(1,
+    at = 0, cex.axis = cextext,
+    labels = "better", line = 2, tick = FALSE
   )
 }
-# matplot(c(log(.8), log(.8)), c(-1, nrow(outforest) + 0.5), type = "l", lwd = 2, lty = 1, add = TRUE, col = "green") # neutral
-matplot(c(log(1), log(1)), c(-1, nrow(outforest) + 1), type = "l", lwd = 1, lty = 1, add = TRUE, col = 1) # harmful
-matplot(c(log(1.5), log(1.5)), c(-1, nrow(outforest) + 1), type = "l", lwd = 1, lty = 1, add = TRUE, col = 1) # very harmful
+```
 
-axis(1,
-  cex.axis = cextext, at = log(seq(0.7, 1.8, 0.1)),
-  labels = c(0.7, 0.8, 0.9, 1.0, NA, 1.2, NA, NA, 1.5, NA, NA, 1.8)
-)
-
-axis(2,
-  at = 1:nrow(outforest), labels = rev(outforest$Model),
-  cex.axis = cextext, tick = FALSE, las = 2, line = 15, hadj = 0
-)
-
-axis(2,
-  at = c(1:nrow(outforest), nrow(outforest) + 0.5),
-  labels = c(rev(outforest$HRtext), "Hazard Ratio (95% CI)"),
-  cex.axis = cextext, tick = FALSE, las = 2, line = 3, hadj = 0.5
-)
-
-
-axis(1,
-  at = 0.04, cex.axis = cextext,
-  labels = "RASi better     No RASi better", line = 1, tick = FALSE
+```{r forestunmeasuredconfdeathrasi, cache=cacheon, dependson="forestunmeasuredconfdeath", fig.cap="Unmeasured confounders ACEi/ARB outcome death"}
+forestufdeath(
+  xvar = "sos_ddr_rasi",
+  xlab = "ACEi/ARB     No ACEi/ARB",
+  xvaradj = "sos_ddr_mra + ",
+  weight = "weight_rasi",
+  unmeasuredc = c(1.4, 2, 10),
+  filt = quote(sos_covidconfirmed == "Yes")
 )
 ```
 
-```{r forestunmeasuredconfmradeath, cache=cacheon, fig.cap="Unmeasured confounders MRA outcome death"}
-
-outforest <- data.frame(matrix(NA, ncol = 5, nrow = 5))
-colnames(outforest) <- c("Model", "HRtext", "logHR", "loglci", "loguci")
-
-# Crude
-mod <- coxph(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_mra,
-  data = pop %>% filter(sos_covidconfirmed == "Yes")
+```{r forestunmeasuredconfdeathmra, cache=cacheon, dependson="forestunmeasuredconfdeath", fig.cap="Unmeasured confounders MRA outcome death"}
+forestufdeath(
+  xvar = "sos_ddr_mra",
+  xlab = "MRA          No MRA",
+  xvaradj = "sos_ddr_rasi + ",
+  weight = "weight_mra",
+  unmeasuredc = c(0.7, 1.8, 5),
+  filt = quote(sos_covidconfirmed == "Yes")
 )
-smod <- summary(mod)
+```
 
-outforest[1, 1] <- "Crude"
-outforest[1, 3] <- log(smod$conf.int[1, 1])
-outforest[1, 4] <- log(smod$conf.int[1, 3])
-outforest[1, 5] <- log(smod$conf.int[1, 4])
-outforest[1, 2] <- paste0(
-  dF(exp(outforest[1, 3]), dig = 2),
-  " (", dF(exp(outforest[1, 4]), dig = 2),
-  "-", dF(exp(outforest[1, 5]), dig = 2), ")"
+```{r forestunmeasuredconfdeathacei, cache=cacheon, dependson="forestunmeasuredconfdeath", fig.cap="Unmeasured confounders ACEi outcome death"}
+forestufdeath(
+  xvar = "sos_ddr_acei",
+  xlab = "ACEi         No ACEi",
+  xvaradj = "sos_ddr_mra + ",
+  weight = "weight_acei",
+  unmeasuredc = c(0.7, 1.3, 4),
+  filt = quote(sos_covidconfirmed == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes"))
 )
+```
 
-# Adj pS IPW
-mod <- coxph(formula(paste0(
-  "Surv(sos_outtime_death, sos_death == 'Yes') ~ ",
-  paste(c("sos_ddr_mra", "sos_ddr_rasi", modvarsns), collapse = " + "))),
-weights = weight_mra,
-data = pop %>% filter(sos_covidconfirmed == "Yes")
+```{r forestunmeasuredconfdeatharb, cache=cacheon, dependson="forestunmeasuredconfdeath", fig.cap="Unmeasured confounders ARB outcome death"}
+forestufdeath(
+  xvar = "sos_ddr_arb",
+  xlab = "ARB          No ARB",
+  xvaradj = "sos_ddr_mra + ",
+  weight = "weight_arb",
+  unmeasuredc = c(1.3, 1.9, 8),
+  filt = quote(sos_covidconfirmed == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes"))
 )
+```
 
-smod <- jtools::get_robust_se(mod, type = "HC0")
-
-outforest[2, 1] <- "Adjusted"
-outforest[2, 3] <- smod$coefs[1, 1]
-outforest[2, 4] <- smod$coefs[1, 1] - global_z05 * smod$coefs[1, 2]
-outforest[2, 5] <- smod$coefs[1, 1] + global_z05 * smod$coefs[1, 2]
-outforest[2, 2] <- paste0(
-  dF(exp(outforest[2, 3]), dig = 2),
-  " (", dF(exp(outforest[2, 4]), dig = 2),
-  "-", dF(exp(outforest[2, 5]), dig = 2), ")"
-)
-
-# Adj with unmeasured confounder I-III
-
-hruc <- c(0.7, 1.8, 5)
-p <- c(0.7, 0.35)
-
-unconf <- obsSensSCC(outforest[2, 3], c(outforest[2, 4], outforest[2, 5]),
-  g0 = hruc,
-  p0 = p[1], p1 = p[2],
-  logHaz = TRUE
-)
-
-outforest[3:5, 1] <- paste0("Adjusted counfounder\nHR = ", hruc)
-outforest[3:5, 3] <- unconf[[1]][1:3]
-outforest[3:5, 4] <- unconf[[2]][1:3]
-outforest[3:5, 5] <- unconf[[3]][1:3]
-
-outforest[3:5, 2] <- paste0(
-  dF(exp(outforest[3:5, 3]), dig = 2),
-  " (", dF(exp(outforest[3:5, 4]), dig = 2),
-  "-", dF(exp(outforest[3:5, 5]), dig = 2), ")"
-)
-
-cextext <- 1
-
-par(mar = c(4, 16, 1, 2) + 0.2)
-
-
-plot(0, 0,
-  type = "h",
-  xlab = NA,
-  xlim = c(
-    log(.7),
-    log(1.8)
-  ),
-  ylim = c(1, nrow(outforest) + .4),
-  axes = FALSE,
-  ylab = NA,
-  main = NA,
-  panel.first = rect(c(log(0.7), log(1), log(1.5)), -1e6, c(log(1), log(1.5), log(1.8)), 1e6, 
-                     col = c("palegreen3", "darkgoldenrod1", "tomato3"), border = NA)
-)
-
-matplot(rev(outforest$logHR), 1:nrow(outforest),
-  cex = 2,
-  type = "p",
-  pch = 22,
-  bg = 1,
-  col = 1,
-  add = TRUE
-)
-
-
-for (i in 1:nrow(outforest)) {
-  matplot(c(rev(outforest$loglci)[i], rev(outforest$loguci)[i]), c(i, i),
-    type = "l", add = TRUE, col = 1, cex = 2
-  )
-}
-# matplot(c(log(.8), log(.8)), c(-1, nrow(outforest) + 0.5), type = "l", lwd = 2, lty = 1, add = TRUE, col = "green") # neutral
-matplot(c(log(1), log(1)), c(-1, nrow(outforest) + 1), type = "l", lwd = 1, lty = 1, add = TRUE, col = 1) # harmful
-matplot(c(log(1.5), log(1.5)), c(-1, nrow(outforest) + 1), type = "l", lwd = 1, lty = 1, add = TRUE, col = 1) # very harmful
-
-axis(1,
-  cex.axis = cextext, at = log(seq(0.7, 1.8, 0.1)),
-  labels = c(0.7, 0.8, 0.9, 1.0, NA, 1.2, NA, NA, 1.5, NA, NA, 1.8)
-)
-
-axis(2,
-  at = 1:nrow(outforest), labels = rev(outforest$Model),
-  cex.axis = cextext, tick = FALSE, las = 2, line = 15, hadj = 0
-)
-
-axis(2,
-  at = c(1:nrow(outforest), nrow(outforest) + 0.5),
-  labels = c(rev(outforest$HRtext), "Hazard Ratio (95% CI)"),
-  cex.axis = cextext, tick = FALSE, las = 2, line = 3, hadj = 0.5
-)
-
-
-axis(1,
-  at = 0.04, cex.axis = cextext,
-  labels = "MRA better     No MRA better", line = 1, tick = FALSE
+```{r forestunmeasuredconfdeathrasimra, cache=cacheon, dependson="forestunmeasuredconfdeath", fig.cap="Unmeasured confounders ACEi/ARB + MRA outcome death"}
+forestufdeath(
+  xvar = "sos_ddr_rasimra",
+  xlab = "ACEi/ARB+MRA  No ACEi/ARB+MRA",
+  xvaradj = "",
+  weight = "weight_rasimra",
+  unmeasuredc = c(0.7, 2.5, 7),
+  filt = quote(sos_covidconfirmed == "Yes")
 )
 ```

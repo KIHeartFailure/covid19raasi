@@ -49,25 +49,10 @@ flow <- rbind(flow, c(
   pop %>% filter(sos_out_hospcovidconfirmed == "Yes" | sos_deathcovidconfulorsak == "Yes") %>% count()
 ))
 
-# Pop for neg control outcomes --------------------------------------------
-
-pop <- pop %>%
-  mutate(pop_nc = case_when(
-    (sos_com_nc_hypertension == "Yes" |
-      sos_com_nc_diabetes == "Yes" |
-      sos_com_nc_hf == "Yes" |
-      sos_com_nc_renal == "Yes" |
-      sos_com_nc_ihd == "Yes") &
-      is.na(scb_immigratedpost2014) &
-      scb_nc_age >= 18 &
-      sos_ddr_nc_arni == "No" ~ "Yes",
-    TRUE ~ "No"
-  ))
-
 flow <- rbind(flow, c(
-  "Population for negative control analyses",
-  pop %>% filter(pop_nc == "Yes") %>% count()
+  "Patients without both ACEi and ARB (included in the sep ACEi and ARB analyses) ",
+  pop %>% filter(!(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")) %>% count()
 ))
 
 pop <- pop %>%
-  select(-scb_emigrated, -scb_immigratedpost2015, -scb_immigratedpost2014, -scb_atersenpnr)
+  select(-scb_emigrated, -scb_immigratedpost2015, -scb_atersenpnr)

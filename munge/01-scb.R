@@ -40,14 +40,34 @@ fodelseuppg <- fodelseuppg %>%
     scb_countryofbirth = factor(scb_countryofbirth,
       labels = c("Sweden", "Europe", "Other")
     ),
+    scb_countryofbirth_africaasia = case_when(
+      FodelselandGrp %in% c(
+        "Afrika",
+        "Asien"
+      ) ~ 2,
+      FodelselandGrp %in% c(
+        "Nordamerika",
+        "Oceanien",
+        "Sovjetunionen",
+        "Sydamerika",
+        "Statslos",
+        "EU28 utom Norden",
+        "Europa utom EU28 och Norden",
+        "Norden utom Sverige",
+        "Sverige"
+      ) ~ 1
+    ),
+    scb_countryofbirth_africaasia = factor(scb_countryofbirth_africaasia,
+      levels = c(2, 1),
+      labels = c("Africa/Asia", "Other")
+    ),
 
     scb_sex = case_when(
       Kon == 1 ~ "Male",
       Kon == 2 ~ "Female"
     ),
 
-    scb_age = 2019 - as.numeric(FoddAr),
-    scb_nc_age = 2018 - as.numeric(FoddAr)
+    scb_age = 2019 - as.numeric(FoddAr)
   ) %>%
   select(LopNr, starts_with("scb_"))
 
@@ -115,17 +135,6 @@ immigration <- migration %>%
   mutate(scb_immigratedpost2015 = 1) %>%
   select(LopNr, starts_with("scb_"))
 
-immigration_nc <- migration %>%
-  mutate(migdat = ymd(Datum)) %>%
-  group_by(LopNr) %>%
-  arrange(Datum) %>%
-  slice(n()) %>%
-  ungroup() %>%
-  filter(Posttyp == "Inv" &
-    migdat >= ymd("20140101")) %>%
-  mutate(scb_immigratedpost2014 = 1) %>%
-  select(LopNr, starts_with("scb_"))
-
 # All ---------------------------------------------------------------------
 
 pop <- Reduce(
@@ -134,11 +143,10 @@ pop <- Reduce(
       by = "LopNr"
     )
   },
-  list(atersenpnr, emigration, immigration, immigration_nc, fodelseuppg, rtb, lisa, antalbarn)
+  list(atersenpnr, emigration, immigration, fodelseuppg, rtb, lisa, antalbarn)
 )
 
 pop <- pop %>%
   mutate(
-    indexdtm = global_indexdtm,
-    indexdtm_nc = global_indexdtm - 365
+    indexdtm = global_indexdtm
   )

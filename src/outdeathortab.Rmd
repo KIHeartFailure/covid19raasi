@@ -1,14 +1,11 @@
-```{r ortab, cache=cacheon}
+```{r ortabdeath, cache=cacheon}
 
-ormy <- function(event, modvarsmy, data, modname, weight) {
-  out <- data.frame(matrix(NA, ncol = 9, nrow = 4, 1))
+ordeathmy <- function(event, modvarsmy, data, modname, weight) {
+  out <- data.frame(matrix(NA, ncol = 5, nrow = 4, 1))
 
   out[1, 1] <- modname
 
-  colnames(out) <- c(
-    "Subgroup", "Model", "No", "Yes",
-    "p-value", "logor", "loglci", "loguci", "modname"
-  )
+  colnames(out) <- c("Subgroup", "Model", "No", "Yes", "p-value")
 
   ns <- data %>%
     group_by(!!sym(modvarsmy[1])) %>%
@@ -81,190 +78,110 @@ ormy <- function(event, modvarsmy, data, modname, weight) {
     dF(smod$coefs[2, 4], dig = 3, p = TRUE)
   )
 
-  # for forestplot
-  out[4, 6] <- smod$coefs[2, 1]
-  out[4, 7] <- smod$coefs[2, 1] - global_z05 * smod$coefs[2, 2]
-  out[4, 8] <- smod$coefs[2, 1] + global_z05 * smod$coefs[2, 2]
-  out[4, 9] <- modname
-
   return(out)
 }
 ```
 
-```{r ortabforest, cache=cacheon}
-
-forestorplot <- function(forestdata, xlab) {
-  cextext <- 1
-
-  outforestor <- forestdata %>%
-    filter(Model == "Adj IPW OR (95% CI)" &
-      modname %in% c("All", "HF", "Hypertension", "Kidney disease", "IHD", "Diabetes", "Stockholm")) %>%
-    mutate(modnameforforest = case_when(
-      modname == "All" ~ "All",
-      modname == "HF" ~ "With HF",
-      modname == "Hypertension" ~ "With hypertension",
-      modname == "Kidney disease" ~ "With kidney disease",
-      modname == "IHD" ~ "With IHD",
-      modname == "Diabetes" ~ "With diabetes",
-      modname == "Stockholm" ~ "In Stockholm"
-    ))
-
-
-  par(mar = c(4, 14, 1, 2) + 0.2)
-  plot(rev(outforestor$logor), 1:nrow(outforestor),
-    xlab = "",
-    xlim = c(
-      log(.6),
-      log(1.2)
-    ),
-    ylim = c(1, nrow(outforestor) + 1),
-    axes = FALSE,
-    ylab = NA,
-    cex.lab = 1.1,
-    main = NA,
-    cex = 2,
-    type = "p",
-    pch = 22,
-    bg = global_kicols[1],
-    col = global_kicols[1]
-  )
-
-
-  for (i in 1:nrow(outforestor)) {
-    matplot(c(rev(outforestor$loglci)[i], rev(outforestor$loguci)[i]), c(i, i),
-      type = "l", add = TRUE, col = global_kicols[1], cex = 2
-    )
-  }
-  matplot(c(0, 0), c(-1, nrow(outforestor) + 0.5), type = "l", lty = 3, add = TRUE, col = "black")
-
-  axis(1,
-    cex.axis = cextext, at = log(seq(0.6, 1.2, 0.1)),
-    labels = c(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2)
-  )
-
-  axis(2,
-    at = 1:(nrow(outforestor) +1), 
-    labels = c(rev(outforestor$modnameforforest), "Patients"),
-    cex.axis = cextext, tick = FALSE, las = 2, line = 13, hadj = 0
-  )
-
-  axis(2,
-    at = 1:(nrow(outforestor) + 1),
-    labels = c(rev(outforestor$Yes), "Odds Ratio (95% CI)"),
-    cex.axis = cextext, tick = FALSE, las = 2, line = 2, hadj = 0.5
-  )
-
-  axis(1,
-    at = 0.025, cex.axis = cextext,
-    labels = xlab, line = 1, tick = FALSE
-  )
-  axis(1,
-    at = 0, cex.axis = cextext,
-    labels = "better", line = 2, tick = FALSE
-  )
-}
-```
-
-```{r ortabrasimra, cache=cacheon, dependson="ortab"}
+```{r ortabdeathrasimra, cache=cacheon, dependson="ortabdeath"}
 
 # ACEi/ARB
-out11 <- ormy(
-  event = "sos_covidconfirmed",
+out11 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns),
-  data = pop,
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & !is.na(sos_out_death30d)),
   modname = "All",
   weight = "weight_rasi"
 )
-out13 <- ormy(
-  event = "sos_covidconfirmed",
+out13 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
-  data = pop %>% filter(sos_com_hf == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes" & !is.na(sos_out_death30d)),
   modname = "HF",
   weight = "weight_rasi"
 )
-out14 <- ormy(
-  event = "sos_covidconfirmed",
+out14 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
-  data = pop %>% filter(sos_com_hypertension == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes" & !is.na(sos_out_death30d)),
   modname = "Hypertension",
   weight = "weight_rasi"
 )
-out15 <- ormy(
-  event = "sos_covidconfirmed",
+out15 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
-  data = pop %>% filter(sos_com_renal == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes" & !is.na(sos_out_death30d)),
   modname = "Kidney disease",
   weight = "weight_rasi"
 )
-out16 <- ormy(
-  event = "sos_covidconfirmed",
+out16 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
-  data = pop %>% filter(sos_com_ihd == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes" & !is.na(sos_out_death30d)),
   modname = "IHD",
   weight = "weight_rasi"
 )
-out17 <- ormy(
-  event = "sos_covidconfirmed",
+out17 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
-  data = pop %>% filter(sos_com_diabetes == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes" & !is.na(sos_out_death30d)),
   modname = "Diabetes",
   weight = "weight_rasi"
 )
-out18 <- ormy(
-  event = "sos_covidconfirmed",
+out18 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasi", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
-  data = pop %>% filter(scb_region_stockholm == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes" & !is.na(sos_out_death30d)),
   modname = "Stockholm",
   weight = "weight_rasi"
 )
 
 # MRA
-out21 <- ormy(
-  event = "sos_covidconfirmed",
+out21 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns),
-  data = pop,
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & !is.na(sos_out_death30d)),
   modname = "All",
   weight = "weight_mra"
 )
-out23 <- ormy(
-  event = "sos_covidconfirmed",
+out23 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_hf"]),
-  data = pop %>% filter(sos_com_hf == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes" & !is.na(sos_out_death30d)),
   modname = "HF",
   weight = "weight_mra"
 )
-out24 <- ormy(
-  event = "sos_covidconfirmed",
+out24 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
-  data = pop %>% filter(sos_com_hypertension == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes" & !is.na(sos_out_death30d)),
   modname = "Hypertension",
   weight = "weight_mra"
 )
-out25 <- ormy(
-  event = "sos_covidconfirmed",
+out25 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_renal"]),
-  data = pop %>% filter(sos_com_renal == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes" & !is.na(sos_out_death30d)),
   modname = "Kidney disease",
   weight = "weight_mra"
 )
-out26 <- ormy(
-  event = "sos_covidconfirmed",
+out26 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_ihd"]),
-  data = pop %>% filter(sos_com_ihd == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes" & !is.na(sos_out_death30d)),
   modname = "IHD",
   weight = "weight_mra"
 )
-out27 <- ormy(
-  event = "sos_covidconfirmed",
+out27 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
-  data = pop %>% filter(sos_com_diabetes == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes" & !is.na(sos_out_death30d)),
   modname = "Diabetes",
   weight = "weight_mra"
 )
-out28 <- ormy(
-  event = "sos_covidconfirmed",
+out28 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_mra", "sos_ddr_rasi", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
-  data = pop %>% filter(scb_region_stockholm == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes" & !is.na(sos_out_death30d)),
   modname = "Stockholm",
   weight = "weight_mra"
 )
@@ -282,17 +199,17 @@ outall <- cbind(
   )
 )
 
-outalltmp <- outall[, c(1:5, 12:14)]
+outalltmp <- outall[, c(1:5, 8:10)]
 colnames(outalltmp) <- c("Subgroup", "Model", rep(c("No", "Yes", "p-value"), 2))
 
-write.xlsx(outalltmp, paste0("./output/tabs/outcovidrasimra_", Sys.Date(), ".xlsx"), rowNames = FALSE)
+write.xlsx(outalltmp, paste0("./output/tabs/death30daftercovid_rasimra_", Sys.Date(), ".xlsx"), rowNames = FALSE)
 
 myHeader <- c(" " = 1, " " = 1, "ACEi/ARB" = 3, "MRA" = 3)
 names(myHeader) <- c(" ", " ", "ACEi/ARB", "MRA")
 
 footnote(mykable(outalltmp,
   fontsize = 6,
-  caption = "Outcome Covid-19 ACEi/ARB and MRA",
+  caption = "All-cause mortality within 30 days after confirmed Covid-19 ACEi/ARB and MRA",
   longtable = TRUE
 ) %>%
   landscape() %>%
@@ -304,165 +221,169 @@ general = c(
 )
 ```
 
-```{r orplotrasi, cache=cacheon, dependson = "ortabforest", fig.cap="Forestplot Association ACEi/ARB vs Covid-19"}
-forestorplot(outrasi, "ACEi/ARB No ACEi/ARB")
-```
-
-```{r orplotmra, cache=cacheon, dependson = "ortabforest", fig.cap="Forestplot Association MRA vs Covid-19"}
-forestorplot(outmra, "MRA  No MRA")
-```
-
-```{r ortabrasimra2, cache=cacheon, dependson="ortab"}
+```{r ortabdeathrasimra2, cache=cacheon, dependson="ortabdeath"}
 
 # ACEi
-out11 <- ormy(
-  event = "sos_covidconfirmed",
+out11 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns),
-  data = pop %>% filter(!(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "All",
   weight = "weight_acei"
 )
-out13 <- ormy(
-  event = "sos_covidconfirmed",
+out13 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
-  data = pop %>% filter(sos_com_hf == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "HF",
   weight = "weight_acei"
 )
-out14 <- ormy(
-  event = "sos_covidconfirmed",
+out14 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
-  data = pop %>% filter(sos_com_hypertension == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "Hypertension",
   weight = "weight_acei"
 )
-out15 <- ormy(
-  event = "sos_covidconfirmed",
+out15 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
-  data = pop %>% filter(sos_com_renal == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "Kidney disease",
   weight = "weight_acei"
 )
-out16 <- ormy(
-  event = "sos_covidconfirmed",
+out16 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
-  data = pop %>% filter(sos_com_ihd == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "IHD",
   weight = "weight_acei"
 )
-out17 <- ormy(
-  event = "sos_covidconfirmed",
+out17 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
-  data = pop %>% filter(sos_com_diabetes == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "Diabetes",
   weight = "weight_acei"
 )
-out18 <- ormy(
-  event = "sos_covidconfirmed",
+out18 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_acei", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
-  data = pop %>% filter(scb_region_stockholm == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "Stockholm",
   weight = "weight_acei"
 )
 
 # ARB
-out21 <- ormy(
-  event = "sos_covidconfirmed",
+out21 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns),
-  data = pop %>% filter(!(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "All",
   weight = "weight_arb"
 )
-out23 <- ormy(
-  event = "sos_covidconfirmed",
+out23 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hf"]),
-  data = pop %>% filter(sos_com_hf == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "HF",
   weight = "weight_arb"
 )
-out24 <- ormy(
-  event = "sos_covidconfirmed",
+out24 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
-  data = pop %>% filter(sos_com_hypertension == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "Hypertension",
   weight = "weight_arb"
 )
-out25 <- ormy(
-  event = "sos_covidconfirmed",
+out25 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_renal"]),
-  data = pop %>% filter(sos_com_renal == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "Kidney disease",
   weight = "weight_arb"
 )
-out26 <- ormy(
-  event = "sos_covidconfirmed",
+out26 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
-  data = pop %>% filter(sos_com_ihd == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "IHD",
   weight = "weight_arb"
 )
-out27 <- ormy(
-  event = "sos_covidconfirmed",
+out27 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
-  data = pop %>% filter(sos_com_diabetes == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "Diabetes",
   weight = "weight_arb"
 )
-out28 <- ormy(
-  event = "sos_covidconfirmed",
+out28 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_arb", "sos_ddr_mra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
-  data = pop %>% filter(scb_region_stockholm == "Yes" & !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes")),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes" & 
+                          !(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes") & !is.na(sos_out_death30d)),
   modname = "Stockholm",
   weight = "weight_arb"
 )
 
 # ACEi/ARB + MRA
-out31 <- ormy(
-  event = "sos_covidconfirmed",
+out31 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasimra", modvarsns),
-  data = pop,
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & !is.na(sos_out_death30d)),
   modname = "All",
   weight = "weight_rasimra"
 )
-out33 <- ormy(
-  event = "sos_covidconfirmed",
+out33 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_hf"]),
-  data = pop %>% filter(sos_com_hf == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hf == "Yes" & !is.na(sos_out_death30d)),
   modname = "HF",
   weight = "weight_rasimra"
 )
-out34 <- ormy(
-  event = "sos_covidconfirmed",
+out34 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_hypertension"]),
-  data = pop %>% filter(sos_com_hypertension == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_hypertension == "Yes" & !is.na(sos_out_death30d)),
   modname = "Hypertension",
   weight = "weight_rasimra"
 )
-out35 <- ormy(
-  event = "sos_covidconfirmed",
+out35 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_renal"]),
-  data = pop %>% filter(sos_com_renal == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_renal == "Yes" & !is.na(sos_out_death30d)),
   modname = "Kidney disease",
   weight = "weight_rasimra"
 )
-out36 <- ormy(
-  event = "sos_covidconfirmed",
+out36 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_ihd"]),
-  data = pop %>% filter(sos_com_ihd == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_ihd == "Yes" & !is.na(sos_out_death30d)),
   modname = "IHD",
   weight = "weight_rasimra"
 )
-out37 <- ormy(
-  event = "sos_covidconfirmed",
+out37 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "sos_com_diabetes"]),
-  data = pop %>% filter(sos_com_diabetes == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & sos_com_diabetes == "Yes" & !is.na(sos_out_death30d)),
   modname = "Diabetes",
   weight = "weight_rasimra"
 )
-out38 <- ormy(
-  event = "sos_covidconfirmed",
+out38 <- ordeathmy(
+  event = "sos_out_death30d",
   modvarsmy = c("sos_ddr_rasimra", modvarsns[!modvarsns %in% "scb_region_stockholm"]),
-  data = pop %>% filter(scb_region_stockholm == "Yes"),
+  data = pop %>% filter(sos_covidconfirmed == "Yes" & scb_region_stockholm == "Yes" & !is.na(sos_out_death30d)),
   modname = "Stockholm",
   weight = "weight_rasimra"
 )
@@ -485,17 +406,17 @@ outall <- cbind(
   )
 )
 
-outalltmp <- outall[, c(1:5, 12:14, 21:23)]
+outalltmp <- outall[, c(1:5, 8:10, 13:15)]
 colnames(outalltmp) <- c("Subgroup", "Model", rep(c("No", "Yes", "p-value"), 3))
 
-write.xlsx(outalltmp, paste0("./output/tabs/outcovidrasimra2_", Sys.Date(), ".xlsx"), rowNames = FALSE)
+write.xlsx(outalltmp, paste0("./output/tabs/death30daftercovid_rasimra2_", Sys.Date(), ".xlsx"), rowNames = FALSE)
 
 myHeader <- c(" " = 1, " " = 1, "ACEi" = 3, "ARB" = 3, "ACEi/ARB + MRA" = 3)
 names(myHeader) <- c(" ", " ", "ACEi", "ARB", "ACEi/ARB + MRA")
 
 footnote(mykable(outalltmp,
   fontsize = 6,
-  caption = "Outcome Covid-19 ACEi, ARB and ACEi/ARB + MRA",
+  caption = "All-cause mortality within 30 days after confirmed Covid-19 ACEi, ARB and ACEi/ARB + MRA",
   longtable = TRUE
 ) %>%
   landscape() %>%
@@ -505,16 +426,4 @@ general = c(
   "Adj IPW = adjusted for variables indicated in baseline table and using inverse probabilty weights for ACEi, ARB and ACEi/ARB+MRA respectively."
 )
 )
-```
-
-```{r orplotacei, cache=cacheon, dependson = "ortabforest", fig.cap="Forestplot Association ACEi vs Covid-19"}
-forestorplot(outacei, "ACEi  No ACEi")
-```
-
-```{r orplotarb, cache=cacheon, dependson = "ortabforest", fig.cap="Forestplot Association ARB vs Covid-19"}
-forestorplot(outarb, "ARB  No ARB")
-```
-
-```{r orplotrasimra, cache=cacheon, dependson = "ortabforest", fig.cap="Forestplot Association ACEi/ARB + MRA vs Covid-19"}
-forestorplot(outrasimra, "ACEi/ARB+MRA No ACEi/ARB+MRA")
 ```
