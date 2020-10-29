@@ -2,6 +2,9 @@
 
 timetreatsvars <- names(pop)[str_detect(names(pop), "(_time)")]
 
+pop <- pop %>% 
+  mutate(sos_ddr_rasi_time = ifelse(!(sos_ddr_acei == "Yes" & sos_ddr_arb == "Yes"), NA, sos_ddr_rasi_time))
+
 tab1_tmp <- CreateTableOne(
   vars = timetreatsvars,
   data = pop
