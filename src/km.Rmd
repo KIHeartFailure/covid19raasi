@@ -5,7 +5,7 @@ kmfunc <- function(xvar, filt, xvarname, yjust = c(0, 0)) {
   )
 
   # logrank
-  sd <- survdiff(Surv(sos_outtime_death, sos_death == "Yes") ~ sos_ddr_rasi,
+  sd <- survdiff(formula(paste("Surv(sos_outtime_death, sos_death == 'Yes') ~ ", xvar)),
     data = pop %>% filter(!!filt)
   )
   p <- dF(pchisq(sd$chisq, length(sd$n) - 1, lower.tail = FALSE), dig = 3, p = TRUE)
