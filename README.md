@@ -31,4 +31,4 @@ reports/Statistical_report_XX.Rmd
 
 ## Publication
 
-https://doi.org/10.1002/ejhf.2060
+https://doi.org/10.1002/ejhf.2060 
